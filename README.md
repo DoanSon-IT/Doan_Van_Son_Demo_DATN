@@ -1,3 +1,4 @@
+# Thông tin tác giả: Đoàn Văn Sơn
 # 🚫 STOP RIGHT THERE, CODE THIEF! 🚨
 
 ## Lời Cảnh Báo Nghiêm Trọng Về Việc Đạo Code
