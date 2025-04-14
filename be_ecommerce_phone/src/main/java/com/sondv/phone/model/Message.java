@@ -26,4 +26,7 @@ public class Message {
 
     @Column(nullable = false)
     private boolean isRead = false;
+
+    @Transient
+    private String senderAvatarUrl;
 }

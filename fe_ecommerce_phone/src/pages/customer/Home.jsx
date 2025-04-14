@@ -4,7 +4,6 @@ import ProductGrid from "./ProductGrid";
 import Slider from "../../components/layout/Slider";
 import apiCategory from "../../api/apiCategory";
 import useWindowSize from "../../hooks/useWindowSize";
-import RandomDiscount from "../../components/common/RandomDiscount";
 
 const Home = () => {
     const [categories, setCategories] = useState([]);
@@ -114,10 +113,6 @@ const Home = () => {
                                 </Link>
                             </div>
                         </div>
-                    </section>
-
-                    <section className="w-full mt-10 z-10">
-                        <RandomDiscount />
                     </section>
 
                     <section className="w-full mt-10 z-10">

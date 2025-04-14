@@ -122,6 +122,7 @@ public class SecurityConfig {
 
                         // 🔓 WebSocket
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/chatbot/ask").permitAll()
 
                         // ❗ Tất cả còn lại phải đăng nhập
                         .anyRequest().authenticated()

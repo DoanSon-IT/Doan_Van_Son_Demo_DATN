@@ -60,6 +60,38 @@ function ProductManagement() {
         supplierId: "",
         images: [],
     });
+
+    useEffect(() => {
+        const fetchProductWhenEditing = async () => {
+            if (editingProduct) {
+                try {
+                    const fullProduct = await apiProduct.getProductById(editingProduct);
+                    setProductData({
+                        name: fullProduct.name || "",
+                        description: fullProduct.description || "",
+                        costPrice: fullProduct.costPrice || "",
+                        sellingPrice: fullProduct.sellingPrice || "",
+                        discountedPrice: fullProduct.discountedPrice || "",
+                        discountStartDate: fullProduct.discountStartDate ? new Date(fullProduct.discountStartDate) : null,
+                        discountEndDate: fullProduct.discountEndDate ? new Date(fullProduct.discountEndDate) : null,
+                        stock: fullProduct.stock || 0,
+                        soldQuantity: fullProduct.soldQuantity || 0,
+                        isFeatured: fullProduct.isFeatured || false,
+                        categoryId: fullProduct.category?.id?.toString() || "",
+                        supplierId: fullProduct.supplier?.id?.toString() || "",
+                        images: [] // Chỉ dùng preview, không đẩy ảnh cũ lên lại
+                    });
+
+                    setImagePreviews(fullProduct.images.map(img => img.imageUrl));
+                } catch (error) {
+                    console.error("❌ Lỗi khi lấy chi tiết sản phẩm để sửa:", error);
+                }
+            }
+        };
+
+        fetchProductWhenEditing();
+    }, [editingProduct]);
+
     const [discountAllData, setDiscountAllData] = useState({
         percentage: "",
         startDateTime: null,
@@ -111,11 +143,19 @@ function ProductManagement() {
 
     const fetchProducts = async () => {
         try {
-            const res = await apiProduct.getFilteredProducts(filters);
+            const cleanFilters = {
+                ...filters,
+                minPrice: filters.minPrice === "" ? null : Number(filters.minPrice),
+                maxPrice: filters.maxPrice === "" ? null : Number(filters.maxPrice),
+                page,
+                size: ITEMS_PER_PAGE,
+            };
+
+            const res = await apiProduct.getFilteredProducts(cleanFilters);
             setProducts(res.content);
             setTotalPages(res.totalPages);
         } catch (error) {
-            console.error("Lỗi khi tải sản phẩm:", error);
+            console.error("❌ Lỗi khi tải sản phẩm:", error);
             toast.error("Không thể tải danh sách sản phẩm!");
         }
     };
@@ -187,9 +227,18 @@ function ProductManagement() {
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        setProductData((prev) => ({ ...prev, images: files }));
-        setImagePreviews(files.map((file) => URL.createObjectURL(file)));
+
+        setProductData((prev) => ({
+            ...prev,
+            images: [...(prev.images || []), ...files], 
+        }));
+
+        setImagePreviews((prev) => [
+            ...prev,
+            ...files.map((file) => URL.createObjectURL(file)),
+        ]);
     };
+
 
     const handleRemoveImage = (index) => {
         setProductData((prev) => ({
@@ -201,7 +250,11 @@ function ProductManagement() {
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        setFilters((prev) => ({ ...prev, [name]: value }));
+        const isNumeric = ["minPrice", "maxPrice"].includes(name);
+        setFilters((prev) => ({
+            ...prev,
+            [name]: isNumeric && value === "" ? "" : value,
+        }));
         setPage(0);
     };
 
@@ -216,78 +269,104 @@ function ProductManagement() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (productData.costPrice === "" || productData.sellingPrice === "" || productData.stock === "") {
-            toast.error("Vui lòng nhập đầy đủ giá và tồn kho!");
+
+        // Validate cơ bản
+        if (!productData.name || !productData.costPrice || !productData.sellingPrice) {
+            toast.error("Vui lòng nhập đầy đủ tên và giá sản phẩm!");
             return;
         }
-        if (
-            Number(productData.costPrice) <= 0 ||
-            Number(productData.sellingPrice) <= 0 ||
-            Number(productData.stock) < 0
-        ) {
-            toast.error("Giá và tồn kho phải lớn hơn hoặc bằng 0!");
+
+        if (isNaN(productData.categoryId) || isNaN(productData.supplierId)) {
+            toast.error("Danh mục hoặc nhà cung cấp không hợp lệ!");
             return;
         }
+
+        if (Number(productData.costPrice) <= 0 || Number(productData.sellingPrice) <= 0) {
+            toast.error("Giá nhập và giá bán phải lớn hơn 0!");
+            return;
+        }
+
         if (!productData.categoryId || !productData.supplierId) {
             toast.error("Vui lòng chọn danh mục và nhà cung cấp!");
             return;
         }
+
         setIsLoading(true);
 
         try {
-            let imageUrls = [];
-            if (productData.images.length > 0) {
-                if (productData.images[0] instanceof File) {
-                    if (typeof apiProduct.uploadImageToCloudinary === "function") {
-                        for (let file of productData.images) {
-                            const imageUrl = await apiProduct.uploadImageToCloudinary(file);
-                            if (imageUrl) imageUrls.push({ imageUrl });
-                        }
-                    } else {
-                        console.warn("uploadImageToCloudinary không được định nghĩa, bỏ qua upload ảnh.");
-                    }
-                } else if (editingProduct) {
-                    const originalProduct = products.find((p) => p.id === editingProduct);
-                    imageUrls = originalProduct.images || [];
-                }
-            }
-
+            // Gói payload không có ảnh (ảnh upload sau)
             const productPayload = {
                 name: productData.name,
                 description: productData.description,
                 costPrice: Number(productData.costPrice),
                 sellingPrice: Number(productData.sellingPrice),
-                discountedPrice: productData.discountedPrice ? Number(productData.discountedPrice) : null,
+                discountedPrice: productData.discountedPrice
+                    ? Number(productData.discountedPrice)
+                    : null,
                 discountStartDate: formatDateTimeForBackend(productData.discountStartDate),
                 discountEndDate: formatDateTimeForBackend(productData.discountEndDate),
                 stock: Number(productData.stock),
-                soldQuantity: Number(productData.soldQuantity) || 0,
+                soldQuantity: productData.soldQuantity !== "" ? Number(productData.soldQuantity) : 0,
                 isFeatured: productData.isFeatured ?? false,
                 category: { id: Number(productData.categoryId) },
                 supplier: { id: Number(productData.supplierId) },
-                images: imageUrls,
+                images: [] // Không gửi ảnh trong giai đoạn này
             };
 
+            console.log("🚀 Payload gửi lên:", productPayload);
+
             let response;
+
             if (editingProduct) {
-                console.log("Sending update request:", productPayload);
                 response = await apiProduct.updateProduct(editingProduct, productPayload);
                 toast.success("Sản phẩm đã được cập nhật!");
             } else {
-                console.log("Sending create request:", productPayload);
                 response = await apiProduct.createProduct(productPayload);
                 toast.success("Sản phẩm đã được thêm!");
-                // Khi thêm mới, điều chỉnh tồn kho lần đầu
-                await apiInventory.adjustInventory(response.id, productData.stock, "Khởi tạo sản phẩm");
             }
 
+            // ✅ Upload ảnh nếu có & hợp lệ (sau khi đã có product ID)
+            if (response?.id && Array.isArray(productData.images)) {
+                const validFiles = productData.images.filter(
+                    (file) => file instanceof File && file.type.startsWith("image/")
+                );
+
+                if (validFiles.length > 0) {
+                    try {
+                        await apiProduct.uploadProductImage(response.id, validFiles);
+                    } catch (uploadErr) {
+                        console.error("❌ Upload nhiều ảnh thất bại:", uploadErr);
+                        toast.error(`Lỗi upload ảnh: ${uploadErr.message}`);
+                    }
+                }
+            }
+
+            // Reset form sau khi thành công
             setEditingProduct(null);
             setShowForm(false);
+            setProductData({
+                name: "",
+                description: "",
+                costPrice: "",
+                sellingPrice: "",
+                discountedPrice: "",
+                discountStartDate: null,
+                discountEndDate: null,
+                stock: "",
+                soldQuantity: 0,
+                isFeatured: false,
+                categoryId: "",
+                supplierId: "",
+                images: [],
+            });
+            setImagePreviews([]);
             fetchProducts();
         } catch (error) {
-            console.log("Full API Error Response:", error.response);
-            console.error("API Error Details:", error.message, error.stack);
-            toast.error(error.response?.data?.message || error.message || "Lỗi khi lưu sản phẩm!");
+            console.error("🛑 Lỗi khi lưu sản phẩm:", {
+                message: error.message,
+                response: error.response?.data,
+            });
+            toast.error(error.response?.data?.message || error.message || "Lỗi không xác định khi lưu sản phẩm");
         } finally {
             setIsLoading(false);
         }
@@ -394,7 +473,7 @@ function ProductManagement() {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold">
                     Quản lý Sản phẩm{" "}
-                    <span className="bg-blue-500 text-white text-sm px-2 py-1 rounded-full">{products.length}</span>
+                    <span className="bg-black text-white text-sm px-2 py-1 rounded-full">{products.length}</span>
                 </h2>
                 <div className="space-x-2">
                     <Button onClick={() => setShowDiscountAllForm(true)}>Áp dụng giảm giá tất cả</Button>

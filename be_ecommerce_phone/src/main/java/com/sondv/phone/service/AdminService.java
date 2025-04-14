@@ -98,7 +98,7 @@ public class AdminService {
     }
 
     public List<Product> getTopSellingProducts(int limit) {
-        return productRepository.findTopNByOrderBySoldQuantityDesc(limit);
+        return productRepository.findTopNByOrderBySoldQuantityDesc(PageRequest.of(0, limit));
     }
 
     public List<User> getRecentUsers(int limit) {

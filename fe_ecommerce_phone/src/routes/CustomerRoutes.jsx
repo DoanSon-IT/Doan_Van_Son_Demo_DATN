@@ -19,7 +19,6 @@ const Checkout = lazy(() => import("../pages/customer/Checkout"));
 const Orders = lazy(() => import("../pages/customer/Orders"));
 const Profile = lazy(() => import("../pages/customer/Profile"));
 const OrderConfirmation = lazy(() => import("../pages/customer/OrderConfirmation"));
-const ChatBox = lazy(() => import("../pages/customer/ChatBox"));
 const VNPayReturn = lazy(() => import("../pages/customer/VNPayReturn"));
 
 // ✅ Component loading
@@ -126,16 +125,6 @@ const CustomerRoutes = () => {
                         <ProtectedRoute>
                             <Suspense fallback={<Loading />}>
                                 <OrderConfirmation />
-                            </Suspense>
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="chat"
-                    element={
-                        <ProtectedRoute>
-                            <Suspense fallback={<Loading />}>
-                                <ChatBox />
                             </Suspense>
                         </ProtectedRoute>
                     }

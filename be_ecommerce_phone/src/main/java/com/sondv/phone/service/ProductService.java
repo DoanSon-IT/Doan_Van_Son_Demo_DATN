@@ -7,23 +7,15 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.*;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -38,14 +30,14 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final InventoryRepository inventoryRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
-    private static final String CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/dxopjponu/image/upload";
-    private static final String CLOUDINARY_UPLOAD_PRESET = "Phone_Store";
+    private final InventoryLogRepository inventoryLogRepository; // Thêm để ghi log
+    private final CloudinaryService cloudinaryService;
 
+    // Lấy danh sách sản phẩm với phân trang
     public Page<ProductDTO> getAllProducts(String searchKeyword, Pageable pageable) {
         Page<Product> productPage;
-        if (searchKeyword != null && !searchKeyword.isEmpty()) {
-            productPage = productRepository.findByNameContainingIgnoreCase(searchKeyword, pageable);
+        if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
+            productPage = productRepository.findByNameContainingIgnoreCase(searchKeyword.trim(), pageable);
         } else {
             productPage = productRepository.findAll(pageable);
         }
@@ -60,6 +52,9 @@ public class ProductService {
 
     // Lấy sản phẩm mới nhất
     public List<ProductDTO> getNewestProducts(int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Giới hạn phải lớn hơn 0");
+        }
         List<Product> products = productRepository.findAllByOrderByIdDesc().stream()
                 .limit(limit)
                 .collect(Collectors.toList());
@@ -68,6 +63,9 @@ public class ProductService {
 
     // Lấy sản phẩm bán chạy
     public List<ProductDTO> getBestSellingProducts(int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Giới hạn phải lớn hơn 0");
+        }
         List<Product> products = productRepository.findTop5ByOrderBySoldQuantityDesc().stream()
                 .limit(limit)
                 .collect(Collectors.toList());
@@ -76,29 +74,36 @@ public class ProductService {
 
     // Lấy sản phẩm theo ID
     public Optional<ProductDTO> getProductById(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("ID sản phẩm không hợp lệ");
+        }
         return productRepository.findById(id).map(this::mapToDTOWithDiscountCheck);
     }
 
-    // Lấy sản phẩm phân trang với bộ lọc
     public Page<ProductDTO> getFilteredProducts(String searchKeyword, BigDecimal minPrice, BigDecimal maxPrice, String sortBy, Pageable pageable) {
-        List<Product> products = productRepository.findAllWithCategoryAndSupplier();
-        if (searchKeyword != null && !searchKeyword.isEmpty()) {
-            products = products.stream()
-                    .filter(p -> p.getName().toLowerCase().contains(searchKeyword.toLowerCase()))
-                    .collect(Collectors.toList());
+        List<Product> products;
+
+        // Bắt đầu từ danh sách sản phẩm có phân trang cơ bản (hoặc lọc theo tên nếu có)
+        if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
+            products = productRepository.findByNameContainingIgnoreCase(searchKeyword.trim(), Pageable.unpaged()).getContent();
+        } else {
+            products = productRepository.findAll();
         }
+
+        // Lọc theo giá (nếu có)
         LocalDateTime now = LocalDateTime.now();
-        if (minPrice != null) {
+        if (minPrice != null || maxPrice != null) {
             products = products.stream()
-                    .filter(p -> getCurrentPrice(p, now).compareTo(minPrice) >= 0)
-                    .collect(Collectors.toList());
-        }
-        if (maxPrice != null) {
-            products = products.stream()
-                    .filter(p -> getCurrentPrice(p, now).compareTo(maxPrice) <= 0)
+                    .filter(p -> {
+                        BigDecimal currentPrice = getCurrentPrice(p, now);
+                        boolean matchesMin = minPrice == null || currentPrice.compareTo(minPrice) >= 0;
+                        boolean matchesMax = maxPrice == null || currentPrice.compareTo(maxPrice) <= 0;
+                        return matchesMin && matchesMax;
+                    })
                     .collect(Collectors.toList());
         }
 
+        // Sắp xếp
         switch (sortBy != null ? sortBy.toLowerCase() : "") {
             case "newest":
                 products.sort((a, b) -> b.getId().compareTo(a.getId()));
@@ -114,31 +119,73 @@ public class ProductService {
                 break;
         }
 
+        // Phân trang an toàn
         int start = (int) pageable.getOffset();
+        if (start >= products.size()) {
+            return new PageImpl<>(List.of(), pageable, products.size());
+        }
         int end = Math.min(start + pageable.getPageSize(), products.size());
+
         List<ProductDTO> productDTOs = products.subList(start, end).stream()
                 .map(this::mapToDTOWithDiscountCheck)
                 .collect(Collectors.toList());
+
         return new PageImpl<>(productDTOs, pageable, products.size());
     }
 
-    // Tạo sản phẩm
+    // Tạo sản phẩm mới
+    @Transactional
     public ProductDTO createProduct(Product product) {
         logger.info("Creating product: {}", product.getName());
+
+        validateProduct(product);
         validateCategoryAndSupplier(product);
+
         Product savedProduct = productRepository.save(product);
 
+        // Kiểm tra xem Inventory đã tồn tại chưa
+        if (inventoryRepository.existsByProductId(savedProduct.getId())) {
+            throw new IllegalStateException("Tồn kho đã tồn tại cho sản phẩm này");
+        }
+
+        // Tạo Inventory
         Inventory inventory = new Inventory();
         inventory.setProduct(savedProduct);
-        inventory.setQuantity(product.getStock() != null ? product.getStock() : 0);
+        int initialQuantity = product.getStock() != null ? product.getStock() : 0;
+        inventory.setQuantity(initialQuantity);
+        inventory.setLastUpdated(LocalDateTime.now());
         inventoryRepository.save(inventory);
+        savedProduct.setInventory(inventory);
 
+        // Tạo log khởi tạo
+        InventoryLog log = new InventoryLog();
+        log.setProduct(savedProduct);
+        log.setOldQuantity(0);
+        log.setNewQuantity(initialQuantity);
+        log.setReason("Khởi tạo sản phẩm");
+        log.setUserId(1L); // Giả sử userId từ context
+        log.setTimestamp(LocalDateTime.now());
+        inventoryLogRepository.save(log);
+
+        // Lưu ảnh sản phẩm
         saveProductImages(savedProduct, product.getImages());
+
         return mapToDTOWithDiscountCheck(savedProduct);
     }
 
+    // Cập nhật sản phẩm
+    @Transactional
     public ProductDTO updateProduct(Long id, Product updatedProduct) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("ID sản phẩm không hợp lệ");
+        }
+
         return productRepository.findById(id).map(product -> {
+            // Validate dữ liệu
+            validateProduct(updatedProduct);
+            validateCategoryAndSupplier(updatedProduct);
+
+            // Cập nhật thông tin sản phẩm
             product.setName(updatedProduct.getName());
             product.setDescription(updatedProduct.getDescription());
             product.setCostPrice(updatedProduct.getCostPrice());
@@ -147,45 +194,83 @@ public class ProductService {
             product.setDiscountStartDate(updatedProduct.getDiscountStartDate());
             product.setDiscountEndDate(updatedProduct.getDiscountEndDate());
             product.setFeatured(updatedProduct.isFeatured());
+
             if (updatedProduct.getStock() != null) {
+                if (updatedProduct.getStock() < 0) {
+                    throw new IllegalArgumentException("Tồn kho không được âm");
+                }
                 product.setStock(updatedProduct.getStock());
             }
-            validateCategoryAndSupplier(updatedProduct);
-            product.setCategory(updatedProduct.getCategory());
 
             Product savedProduct = productRepository.save(product);
 
+            // Cập nhật Inventory
             Inventory inventory = inventoryRepository.findByProductId(id)
                     .orElseGet(() -> {
                         Inventory newInventory = new Inventory();
                         newInventory.setProduct(savedProduct);
                         return newInventory;
                     });
-            inventory.setQuantity(savedProduct.getStock() != null ? savedProduct.getStock() : 0);
+
+            int oldQuantity = inventory.getQuantity();
+            int newQuantity = savedProduct.getStock() != null ? savedProduct.getStock() : 0;
+            inventory.setQuantity(newQuantity);
+            inventory.setLastUpdated(LocalDateTime.now());
             inventoryRepository.save(inventory);
+            savedProduct.setInventory(inventory);
+
+            // Tạo log nếu có thay đổi tồn kho
+            if (oldQuantity != newQuantity) {
+                InventoryLog log = new InventoryLog();
+                log.setProduct(savedProduct);
+                log.setOldQuantity(oldQuantity);
+                log.setNewQuantity(newQuantity);
+                log.setReason("Cập nhật sản phẩm");
+                log.setUserId(1L); // Giả sử userId từ context
+                log.setTimestamp(LocalDateTime.now());
+                inventoryLogRepository.save(log);
+            }
 
             return mapToDTOWithDiscountCheck(savedProduct);
-        }).orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại!"));
+        }).orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại với ID: " + id));
     }
 
+    // Xóa sản phẩm
+    @Transactional
     public void deleteProduct(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("ID sản phẩm không hợp lệ");
+        }
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại với ID: " + id));
+
         productRepository.deleteById(id);
     }
 
     // Áp dụng giảm giá cho tất cả sản phẩm
     @Transactional
     public void applyDiscountToAll(BigDecimal percentage, BigDecimal fixedAmount, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+        if (percentage == null && fixedAmount == null) {
+            throw new IllegalArgumentException("Phải cung cấp ít nhất một giá trị giảm giá (phần trăm hoặc cố định)");
+        }
+        if (startDateTime == null || endDateTime == null || startDateTime.isAfter(endDateTime)) {
+            throw new IllegalArgumentException("Thời gian giảm giá không hợp lệ");
+        }
+
         logger.info("Áp dụng giảm giá cho tất cả sản phẩm: percentage={}, fixedAmount={}, startDateTime={}, endDateTime={}",
                 percentage, fixedAmount, startDateTime, endDateTime);
+
         List<Product> products = productRepository.findAll();
         if (products == null || products.isEmpty()) {
             logger.warn("Không tìm thấy sản phẩm để áp dụng giảm giá");
             return;
         }
+
         for (Product product : products) {
             if (product.getSellingPrice() == null) {
                 logger.error("Selling price is null for product: {}", product.getId());
-                continue; // Bỏ qua sản phẩm lỗi
+                continue;
             }
             BigDecimal newPrice = calculateDiscount(product.getSellingPrice(), percentage, fixedAmount);
             logger.info("Giá giảm mới của {}: từ {} → {}", product.getName(), product.getSellingPrice(), newPrice);
@@ -193,30 +278,46 @@ public class ProductService {
             product.setDiscountStartDate(startDateTime);
             product.setDiscountEndDate(endDateTime);
         }
-        try {
-            productRepository.saveAll(products);
-            logger.info("Đã áp dụng giảm giá cho {} sản phẩm", products.size());
-        } catch (Exception e) {
-            logger.error("Lỗi khi lưu sản phẩm: {}", e.getMessage(), e);
-            throw e; // Ném lại để controller xử lý
-        }
+
+        productRepository.saveAll(products);
+        logger.info("Đã áp dụng giảm giá cho {} sản phẩm", products.size());
     }
 
-    // Áp dụng giảm giá cho sản phẩm được chọn
+    // Áp dụng giảm giá cho danh sách sản phẩm
     @Transactional
     public void applyDiscountToSelected(List<Long> productIds, BigDecimal percentage, BigDecimal fixedAmount, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+        if (productIds == null || productIds.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách sản phẩm không được trống");
+        }
+        if (percentage == null && fixedAmount == null) {
+            throw new IllegalArgumentException("Phải cung cấp ít nhất một giá trị giảm giá (phần trăm hoặc cố định)");
+        }
+        if (startDateTime == null || endDateTime == null || startDateTime.isAfter(endDateTime)) {
+            throw new IllegalArgumentException("Thời gian giảm giá không hợp lệ");
+        }
+
         List<Product> products = productRepository.findAllById(productIds);
+        if (products.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy sản phẩm nào để áp dụng giảm giá");
+        }
+
         for (Product product : products) {
+            if (product.getSellingPrice() == null) {
+                logger.warn("Selling price is null for product: {}", product.getId());
+                continue;
+            }
             BigDecimal newPrice = calculateDiscount(product.getSellingPrice(), percentage, fixedAmount);
             product.setDiscountedPrice(newPrice);
             product.setDiscountStartDate(startDateTime);
             product.setDiscountEndDate(endDateTime);
         }
+
         productRepository.saveAll(products);
     }
 
-    // Tự động xóa giảm giá khi hết hạn (chạy mỗi phút)
-    @Scheduled(cron = "0 * * * * *") // Chạy mỗi phút
+    // Xóa giảm giá hết hạn (Scheduled task)
+    @Transactional
+    @Scheduled(cron = "0 * * * * *") // Mỗi phút
     public void clearExpiredDiscounts() {
         LocalDateTime now = LocalDateTime.now();
         List<Product> expiredProducts = productRepository.findByDiscountEndDateBefore(now);
@@ -231,8 +332,85 @@ public class ProductService {
         }
     }
 
+    // Thêm ảnh sản phẩm
+    @Transactional
+    public ProductImageDTO addProductImage(Long productId, MultipartFile file) {
+        if (productId == null || productId <= 0) {
+            throw new IllegalArgumentException("ID sản phẩm không hợp lệ");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File ảnh không được trống");
+        }
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Sản phẩm không tồn tại với ID: " + productId));
+
+        String imageUrl = cloudinaryService.uploadImageToCloudinary(file);
+        if (imageUrl == null || imageUrl.trim().isEmpty()) {
+            throw new IllegalStateException("Không thể upload ảnh lên Cloudinary");
+        }
+
+        ProductImage productImage = new ProductImage();
+        productImage.setImageUrl(imageUrl);
+        productImage.setProduct(product);
+        return mapProductImageToDTO(productImageRepository.save(productImage));
+    }
+
+    // Xóa ảnh sản phẩm
+    @Transactional
+    public void deleteProductImage(Long imageId) {
+        if (imageId == null || imageId <= 0) {
+            throw new IllegalArgumentException("ID ảnh không hợp lệ");
+        }
+
+        ProductImage productImage = productImageRepository.findById(imageId)
+                .orElseThrow(() -> new IllegalArgumentException("Ảnh sản phẩm không tồn tại với ID: " + imageId));
+        productImageRepository.delete(productImage);
+    }
+
+    // Validate dữ liệu sản phẩm
+    private void validateProduct(Product product) {
+        if (product == null) {
+            throw new IllegalArgumentException("Thông tin sản phẩm không được trống");
+        }
+        if (product.getName() == null || product.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên sản phẩm không được trống");
+        }
+        if (product.getCostPrice() == null || product.getCostPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá vốn phải lớn hơn 0");
+        }
+        if (product.getSellingPrice() == null || product.getSellingPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Giá bán phải lớn hơn 0");
+        }
+        if (product.getStock() != null && product.getStock() < 0) {
+            throw new IllegalArgumentException("Tồn kho không được âm");
+        }
+        if (product.getSoldQuantity() != null && product.getSoldQuantity() < 0) {
+            throw new IllegalArgumentException("Số lượng đã bán không được âm");
+        }
+    }
+
+    // Validate danh mục và nhà cung cấp
+    private void validateCategoryAndSupplier(Product product) {
+        if (product.getCategory() == null || product.getCategory().getId() == null) {
+            throw new IllegalArgumentException("Danh mục là bắt buộc");
+        }
+        if (!categoryRepository.existsById(product.getCategory().getId())) {
+            throw new IllegalArgumentException("Danh mục không tồn tại với ID: " + product.getCategory().getId());
+        }
+        if (product.getSupplier() == null || product.getSupplier().getId() == null) {
+            throw new IllegalArgumentException("Nhà cung cấp là bắt buộc");
+        }
+        if (!supplierRepository.existsById(product.getSupplier().getId())) {
+            throw new IllegalArgumentException("Nhà cung cấp không tồn tại với ID: " + product.getSupplier().getId());
+        }
+    }
+
+    // Tính giá giảm
     private BigDecimal calculateDiscount(BigDecimal originalPrice, BigDecimal percentage, BigDecimal fixedAmount) {
-        if (originalPrice == null) return BigDecimal.ZERO;
+        if (originalPrice == null) {
+            throw new IllegalArgumentException("Giá gốc không được trống");
+        }
 
         BigDecimal discounted = originalPrice;
 
@@ -244,70 +422,27 @@ public class ProductService {
             discounted = discounted.subtract(fixedAmount);
         }
 
-        return discounted.max(BigDecimal.ZERO); // không bao giờ âm
+        return discounted.max(BigDecimal.ZERO);
     }
 
-    private void validateCategoryAndSupplier(Product product) {
-        if (product.getCategory() == null || product.getCategory().getId() == null) {
-            throw new RuntimeException("Danh mục là bắt buộc!");
-        }
-        if (!categoryRepository.existsById(product.getCategory().getId())) {
-            throw new RuntimeException("ID danh mục " + product.getCategory().getId() + " không tồn tại!");
-        }
-        if (product.getSupplier() == null || product.getSupplier().getId() == null) {
-            throw new RuntimeException("Nhà cung cấp là bắt buộc!");
-        }
-        if (!supplierRepository.existsById(product.getSupplier().getId())) {
-            throw new RuntimeException("ID nhà cung cấp " + product.getSupplier().getId() + " không tồn tại!");
-        }
-    }
-
+    // Lưu ảnh sản phẩm
     private void saveProductImages(Product product, List<ProductImage> images) {
-        if (images != null && !images.isEmpty()) {
-            for (ProductImage image : images) {
+        if (images == null || images.isEmpty()) {
+            logger.info("📸 Không có ảnh để lưu cho sản phẩm: {}", product.getName());
+            return;
+        }
+
+        for (ProductImage image : images) {
+            if (image.getImageUrl() != null && !image.getImageUrl().trim().isEmpty()) {
                 image.setProduct(product);
                 productImageRepository.save(image);
+            } else {
+                logger.warn("⚠ Bỏ qua ảnh vì thiếu URL: {}", image);
             }
         }
     }
 
-    public String uploadImageToCloudinary(MultipartFile file) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new ByteArrayResource(file.getBytes()));
-            body.add("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(CLOUDINARY_UPLOAD_URL, requestEntity, Map.class);
-            if (response.getBody() != null && response.getBody().containsKey("url")) {
-                return (String) response.getBody().get("url");
-            }
-        } catch (IOException e) {
-            logger.error("Không thể upload ảnh", e);
-        }
-        return null;
-    }
-
-    public ProductImageDTO addProductImage(Long productId, MultipartFile file) {
-        String imageUrl = uploadImageToCloudinary(file);
-        if (imageUrl != null) {
-            Product product = productRepository.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
-            ProductImage productImage = new ProductImage();
-            productImage.setImageUrl(imageUrl);
-            productImage.setProduct(product);
-            return mapProductImageToDTO(productImageRepository.save(productImage));
-        }
-        throw new RuntimeException("Không thể upload ảnh");
-    }
-
-    public void deleteProductImage(Long imageId) {
-        ProductImage productImage = productImageRepository.findById(imageId)
-                .orElseThrow(() -> new RuntimeException("Ảnh sản phẩm không tồn tại"));
-        productImageRepository.delete(productImage);
-    }
-
+    // Ánh xạ Product sang DTO
     private ProductDTO mapToDTOWithDiscountCheck(Product product) {
         LocalDateTime now = LocalDateTime.now();
         BigDecimal currentPrice = getCurrentPrice(product, now);
@@ -326,12 +461,22 @@ public class ProductService {
                 .soldQuantity(product.getSoldQuantity())
                 .category(mapCategoryToDTO(product.getCategory()))
                 .supplier(mapSupplierToDTO(product.getSupplier()))
-                .images(product.getImages().stream().map(this::mapProductImageToDTO).collect(Collectors.toList()))
-                .inventory(product.getInventory())
-                .inventoryLogs(product.getInventoryLogs())
+                .images(
+                        Optional.ofNullable(product.getImages())
+                                .orElse(List.of())
+                                .stream()
+                                .map(this::mapProductImageToDTO)
+                                .collect(Collectors.toList())
+                )
+                .inventory(Optional.ofNullable(product.getInventory()).orElse(null))
+                .inventoryLogs(
+                        Optional.ofNullable(product.getInventoryLogs())
+                                .orElse(List.of())
+                )
                 .build();
     }
 
+    // Tính giá hiện tại (ưu tiên giá giảm nếu có)
     private BigDecimal getCurrentPrice(Product product, LocalDateTime now) {
         if (product.getDiscountedPrice() != null &&
                 product.getDiscountStartDate() != null &&
@@ -343,6 +488,7 @@ public class ProductService {
         return product.getSellingPrice();
     }
 
+    // Ánh xạ Category sang DTO
     private CategoryDTO mapCategoryToDTO(Category category) {
         return CategoryDTO.builder()
                 .id(category.getId())
@@ -350,6 +496,7 @@ public class ProductService {
                 .build();
     }
 
+    // Ánh xạ Supplier sang DTO
     private SupplierDTO mapSupplierToDTO(Supplier supplier) {
         return SupplierDTO.builder()
                 .id(supplier.getId())
@@ -360,6 +507,7 @@ public class ProductService {
                 .build();
     }
 
+    // Ánh xạ ProductImage sang DTO
     private ProductImageDTO mapProductImageToDTO(ProductImage image) {
         return ProductImageDTO.builder()
                 .id(image.getId())

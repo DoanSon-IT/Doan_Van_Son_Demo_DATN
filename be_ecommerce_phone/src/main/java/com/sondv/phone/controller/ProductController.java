@@ -6,6 +6,8 @@ import com.sondv.phone.model.*;
 import com.sondv.phone.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -27,27 +30,69 @@ import java.util.stream.Collectors;
 public class ProductController {
 
     private final ProductService productService;
+    private static final Logger logger = LoggerFactory.getLogger(ProductController.class); // Sửa logger
 
     @GetMapping
     public ResponseEntity<Page<ProductDTO>> getAllProducts(
             @RequestParam(required = false, defaultValue = "") String searchKeyword,
             Pageable pageable) {
-        return ResponseEntity.ok(productService.getAllProducts(searchKeyword, pageable));
+        try {
+            Page<ProductDTO> products = productService.getAllProducts(searchKeyword, pageable);
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            logger.error("Error fetching all products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Page.empty(pageable));
+        }
     }
 
     @GetMapping("/featured")
     public ResponseEntity<List<ProductDTO>> getFeaturedProducts(@RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(productService.getFeaturedProducts());
+        try {
+            if (limit <= 0) {
+                return ResponseEntity.badRequest().body(List.of());
+            }
+            List<ProductDTO> products = productService.getFeaturedProducts();
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            logger.error("Error fetching featured products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of());
+        }
     }
 
     @GetMapping("/newest")
     public ResponseEntity<List<ProductDTO>> getNewestProducts(@RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(productService.getNewestProducts(limit));
+        try {
+            if (limit <= 0) {
+                return ResponseEntity.badRequest().body(List.of());
+            }
+            List<ProductDTO> products = productService.getNewestProducts(limit);
+            return ResponseEntity.ok(products);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(List.of());
+        } catch (Exception e) {
+            logger.error("Error fetching newest products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of());
+        }
     }
 
     @GetMapping("/bestselling")
     public ResponseEntity<List<ProductDTO>> getBestSellingProducts(@RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(productService.getBestSellingProducts(limit));
+        try {
+            if (limit <= 0) {
+                return ResponseEntity.badRequest().body(List.of());
+            }
+            List<ProductDTO> products = productService.getBestSellingProducts(limit);
+            return ResponseEntity.ok(products);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(List.of());
+        } catch (Exception e) {
+            logger.error("Error fetching best-selling products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of());
+        }
     }
 
     @GetMapping("/filtered")
@@ -57,21 +102,46 @@ public class ProductController {
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) String sortBy,
             Pageable pageable) {
-        return ResponseEntity.ok(productService.getFilteredProducts(searchKeyword, minPrice, maxPrice, sortBy, pageable));
+        try {
+            if (minPrice != null && minPrice.compareTo(BigDecimal.ZERO) < 0) {
+                logger.warn("Min price is negative");
+                return ResponseEntity.ok(Page.empty(pageable)); // ✅ sửa ở đây
+            }
+            if (maxPrice != null && maxPrice.compareTo(BigDecimal.ZERO) < 0) {
+                logger.warn("Max price is negative");
+                return ResponseEntity.ok(Page.empty(pageable));
+            }
+            if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+                logger.warn("Min price > Max price");
+                return ResponseEntity.ok(Page.empty(pageable));
+            }
+
+            Page<ProductDTO> products = productService.getFilteredProducts(searchKeyword, minPrice, maxPrice, sortBy, pageable);
+            return ResponseEntity.ok(products);
+        } catch (Exception e) {
+            logger.error("Error fetching filtered products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Page.empty(pageable));
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDTO> getProductById(@PathVariable String id) { // Đổi thành String
+    public ResponseEntity<ProductDTO> getProductById(@PathVariable String id) {
         try {
-            Long productId = Long.parseLong(id); // Parse thành Long
+            Long productId = Long.parseLong(id);
             if (productId <= 0) {
-                return ResponseEntity.badRequest().build(); // 400 nếu ID không hợp lệ
+                return ResponseEntity.badRequest().build();
             }
             Optional<ProductDTO> productDTO = productService.getProductById(productId);
             return productDTO.map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build()); // 404 nếu không tìm thấy
+                    .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest().build(); // 400 nếu ID không phải số
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error fetching product with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -81,11 +151,15 @@ public class ProductController {
         try {
             Product product = mapToEntity(productDTO);
             ProductDTO savedProduct = productService.createProduct(product);
-            return ResponseEntity.ok(savedProduct);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi server: " + e.getMessage());
+            logger.error("Error creating product: {}", productDTO.getName(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi server: " + e.getMessage());
         }
     }
 
@@ -93,61 +167,150 @@ public class ProductController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductDTO productDTO) {
         try {
+            if (id == null || id <= 0) {
+                return ResponseEntity.badRequest().body("ID sản phẩm không hợp lệ");
+            }
             Product product = mapToEntity(productDTO);
             ProductDTO updatedProduct = productService.updateProduct(id, product);
             return ResponseEntity.ok(updatedProduct);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi server: " + e.getMessage());
+            logger.error("Error updating product with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi server: " + e.getMessage());
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.noContent().build();
+        try {
+            if (id == null || id <= 0) {
+                return ResponseEntity.badRequest().build();
+            }
+            productService.deleteProduct(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error deleting product with ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @PostMapping("/discount/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> applyDiscountToAll(
             @RequestParam BigDecimal percentage,
             @RequestParam(required = false) BigDecimal fixedAmount,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
         try {
+            if (percentage == null && fixedAmount == null) {
+                return ResponseEntity.badRequest().body("Phải cung cấp ít nhất một giá trị giảm giá (phần trăm hoặc cố định)");
+            }
+            if (percentage != null && percentage.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Phần trăm giảm giá không được âm");
+            }
+            if (fixedAmount != null && fixedAmount.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Số tiền giảm giá không được âm");
+            }
+            if (startDateTime == null || endDateTime == null || startDateTime.isAfter(endDateTime)) {
+                return ResponseEntity.badRequest().body("Thời gian giảm giá không hợp lệ");
+            }
             productService.applyDiscountToAll(percentage, fixedAmount, startDateTime, endDateTime);
             return ResponseEntity.ok("Đã áp dụng giảm giá cho tất cả sản phẩm!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
+            logger.error("Error applying discount to all products", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Lỗi khi áp dụng giảm giá: " + e.getMessage());
         }
     }
 
     @PostMapping("/discount/selected")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> applyDiscountToSelected(
             @RequestBody List<Long> productIds,
             @RequestParam BigDecimal percentage,
             @RequestParam(required = false) BigDecimal fixedAmount,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
-        productService.applyDiscountToSelected(productIds, percentage, fixedAmount, startDateTime, endDateTime);
-        return ResponseEntity.ok("Đã áp dụng giảm giá cho các sản phẩm được chọn!");
+        try {
+            if (productIds == null || productIds.isEmpty()) {
+                return ResponseEntity.badRequest().body("Danh sách sản phẩm không được trống");
+            }
+            if (percentage == null && fixedAmount == null) {
+                return ResponseEntity.badRequest().body("Phải cung cấp ít nhất một giá trị giảm giá (phần trăm hoặc cố định)");
+            }
+            if (percentage != null && percentage.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Phần trăm giảm giá không được âm");
+            }
+            if (fixedAmount != null && fixedAmount.compareTo(BigDecimal.ZERO) < 0) {
+                return ResponseEntity.badRequest().body("Số tiền giảm giá không được âm");
+            }
+            if (startDateTime == null || endDateTime == null || startDateTime.isAfter(endDateTime)) {
+                return ResponseEntity.badRequest().body("Thời gian giảm giá không hợp lệ");
+            }
+            productService.applyDiscountToSelected(productIds, percentage, fixedAmount, startDateTime, endDateTime);
+            return ResponseEntity.ok("Đã áp dụng giảm giá cho các sản phẩm được chọn!");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error applying discount to selected products", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi áp dụng giảm giá: " + e.getMessage());
+        }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/{productId}/images")
-    public ResponseEntity<ProductImageDTO> addProductImage(@PathVariable Long productId, @RequestParam("file") MultipartFile file) {
-        ProductImageDTO productImageDTO = productService.addProductImage(productId, file);
-        return ResponseEntity.ok(productImageDTO);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> addProductImages(
+            @PathVariable Long productId,
+            @RequestParam("files") List<MultipartFile> files) {
+
+        try {
+            if (productId == null || productId <= 0) {
+                return ResponseEntity.badRequest().body("ID sản phẩm không hợp lệ");
+            }
+
+            if (files == null || files.isEmpty()) {
+                return ResponseEntity.badRequest().body("Danh sách ảnh không được trống");
+            }
+
+            List<ProductImageDTO> savedImages = files.stream()
+                    .filter(file -> file != null && !file.isEmpty())
+                    .map(file -> productService.addProductImage(productId, file))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedImages);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error adding images for product ID: {}", productId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi thêm ảnh: " + e.getMessage());
+        }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/images/{imageId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProductImage(@PathVariable Long imageId) {
-        productService.deleteProductImage(imageId);
-        return ResponseEntity.noContent().build();
+        try {
+            if (imageId == null || imageId <= 0) {
+                return ResponseEntity.badRequest().build();
+            }
+            productService.deleteProductImage(imageId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            logger.error("Error deleting image with ID: {}", imageId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     private Product mapToEntity(ProductDTO productDTO) {
@@ -162,33 +325,36 @@ public class ProductController {
         product.setDiscountEndDate(productDTO.getDiscountEndDate());
         product.setFeatured(productDTO.isFeatured());
         product.setStock(productDTO.getStock());
-        product.setSoldQuantity(productDTO.getSoldQuantity());
+        product.setSoldQuantity(
+                productDTO.getSoldQuantity() != null ? productDTO.getSoldQuantity() : 0
+        );
 
         if (productDTO.getCategory() == null || productDTO.getCategory().getId() == null) {
-            throw new IllegalArgumentException("ID danh mục là bắt buộc!");
+            throw new IllegalArgumentException("ID danh mục là bắt buộc");
         }
         Category category = new Category();
         category.setId(productDTO.getCategory().getId());
         product.setCategory(category);
 
         if (productDTO.getSupplier() == null || productDTO.getSupplier().getId() == null) {
-            throw new IllegalArgumentException("ID nhà cung cấp là bắt buộc!");
+            throw new IllegalArgumentException("ID nhà cung cấp là bắt buộc");
         }
         Supplier supplier = new Supplier();
         supplier.setId(productDTO.getSupplier().getId());
         product.setSupplier(supplier);
 
+        List<ProductImage> images = new ArrayList<>();
         if (productDTO.getImages() != null && !productDTO.getImages().isEmpty()) {
-            List<ProductImage> images = productDTO.getImages().stream()
+            images = productDTO.getImages().stream()
+                    .filter(dto -> dto.getImageUrl() != null && !dto.getImageUrl().trim().isEmpty())
                     .map(dto -> {
                         ProductImage image = new ProductImage();
                         image.setImageUrl(dto.getImageUrl());
                         image.setProduct(product);
                         return image;
-                    })
-                    .collect(Collectors.toList());
-            product.setImages(images);
+                    }).collect(Collectors.toList());
         }
+        product.setImages(images);
 
         return product;
     }
