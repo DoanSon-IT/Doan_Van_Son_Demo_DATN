@@ -8,18 +8,18 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/card";
-import { Input } from "@/components/admin/ui/input";
-import { Label } from "@/components/admin/ui/label";
-import { Textarea } from "@/components/admin/ui/textarea";
+import { Card, CardHeader, CardTitle, CardContent } from "../../components/admin/ui/Card";
+import { Input } from "../../components/admin/ui/Input";
+import { Label } from "../../components/admin/ui/Label";
+import { Textarea } from "../../components/admin/ui/Textarea";
 import {
     Select,
     SelectTrigger,
     SelectValue,
     SelectContent,
     SelectItem,
-} from "@/components/admin/ui/select";
-import { Button } from "@/components/admin/ui/button";
+} from "../../components/admin/ui/Select";
+import { Button } from "../../components/admin/ui/Button";
 import AppContext from "../../context/AppContext";
 import debounce from "lodash/debounce";
 import { useNavigate } from "react-router-dom";
