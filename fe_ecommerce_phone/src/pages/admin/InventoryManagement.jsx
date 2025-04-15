@@ -9,7 +9,7 @@ import {
     SelectValue,
     SelectContent,
     SelectItem,
-} from "@/components/admin/ui/select";
+} from "../../components/admin/ui/Select";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import debounce from "lodash/debounce";
@@ -18,7 +18,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle
-} from "@/components/admin/ui/card";
+} from "../../components/admin/ui/Card";
 import {
     BarChart,
     Bar,
