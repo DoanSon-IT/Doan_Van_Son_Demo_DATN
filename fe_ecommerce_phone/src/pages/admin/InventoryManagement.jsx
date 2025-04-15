@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import apiInventory from "../../api/apiInventory";
 import apiProduct from "../../api/apiProduct";
-import { Input } from "@/components/admin/ui/input";
-import { Button } from "@/components/admin/ui/button";
+import { Input } from "../../components/admin/ui/Input";
+import { Button } from "../../components/admin/ui/Button";
 import {
     Select,
     SelectTrigger,
