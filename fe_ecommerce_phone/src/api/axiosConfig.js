@@ -1,7 +1,9 @@
 import axios from "axios";
 import { refreshToken } from "./apiAuth";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = import.meta.env.DEV
+    ? "/api"
+    : import.meta.env.VITE_API_URL ?? "https://backend.dsonmobile.shop/api";
 
 const axiosInstance = axios.create({
     baseURL: API_URL,
