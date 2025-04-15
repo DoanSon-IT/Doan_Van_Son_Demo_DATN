@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import { motion } from "framer-motion";
 import Particles from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import ChatBox from "./ChatBox";
 import AppContext from "../../context/AppContext";
 
 const Contact = () => {
@@ -65,7 +64,6 @@ const Contact = () => {
                     transition={{ delay: 0.6, duration: 0.6 }}
                     className="md:w-1/2"
                 >
-                    <ChatBox isAuthenticated={isAuthenticated} />
                 </motion.div>
             </motion.div>
         </div>
