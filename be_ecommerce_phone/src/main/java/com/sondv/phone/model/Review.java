@@ -1,5 +1,7 @@
 package com.sondv.phone.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,13 +18,10 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
-
-    @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @OneToOne
+    @JoinColumn(name = "order_detail_id", nullable = false, unique = true)
+    @JsonBackReference("orderdetail-review")
+    private OrderDetail orderDetail;
 
     @Column(nullable = false)
     private int rating;
@@ -31,5 +30,6 @@ public class Review {
     private String comment;
 
     @Column(updatable = false)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

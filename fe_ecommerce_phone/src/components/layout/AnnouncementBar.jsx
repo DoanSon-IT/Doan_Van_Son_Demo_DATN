@@ -14,8 +14,8 @@ function AnnouncementBar({ announcements = [] }) {
 
     return (
         <motion.div
-            className="h-12 flex items-center justify-start bg-white border-b border-gray-200 shadow-md relative overflow-hidden"
-            initial={{ opacity: 0 }} // Chỉ giữ opacity, bỏ y: -50
+            className="h-12 flex items-center justify-start bg-white border-b border-gray-200 shadow-md relative overflow-hidden z-[1100]" // Thêm z-index cao
+            initial={{ opacity: 0 }}
             animate={{
                 opacity: 1,
                 transition: {
@@ -33,7 +33,7 @@ function AnnouncementBar({ announcements = [] }) {
                     x: {
                         repeat: Infinity,
                         repeatType: "loop",
-                        duration: defaultAnnouncements.length * 10, // Tốc độ dựa trên số đoạn
+                        duration: defaultAnnouncements.length * 10,
                         ease: "linear",
                     },
                 }}
@@ -54,10 +54,10 @@ function AnnouncementBar({ announcements = [] }) {
                 ))}
             </motion.div>
 
-            {/* Nút đóng (tùy chọn) */}
+            {/* Nút đóng */}
             <button
                 onClick={() => alert("Đoàn Sơn đẹp trai thì không đóng được nha!")}
-                className="absolute right-4 text-gray-600 hover:text-blue-600 transition-colors duration-300"
+                className="absolute right-4 text-gray-600 hover:text-blue-600 transition-colors duration-300 z-[1101]" // Thêm z-index cao hơn
             >
                 ✕
             </button>

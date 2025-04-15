@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useParams } from "react-router-dom";
 import StarRatings from "../../components/product/StarRatings";
+import ProductReviewSection from "../../components/review/ProductReviewSection";
 import { ShoppingCart, Check, CreditCard } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
 import { LazyLoadImage } from "react-lazy-load-image-component";
@@ -157,6 +158,7 @@ function ProductDetail() {
                 newestOnTop
                 className="!fixed !top-24 !left-1/2 !-translate-x-1/2 !z-[1050] pointer-events-none"
             />
+            <ProductReviewSection productId={product.id} />
         </>
     );
 }

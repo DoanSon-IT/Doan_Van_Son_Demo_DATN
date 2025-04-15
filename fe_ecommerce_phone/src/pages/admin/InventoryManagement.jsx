@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import apiInventory from "../../api/apiInventory";
 import apiProduct from "../../api/apiProduct";
-import { Input } from "@/components/admin/ui/input";
-import { Button } from "@/components/admin/ui/button";
+import { Input } from "../../components/admin/ui/Input";
+import { Button } from "../../components/admin/ui/Button";
 import {
     Select,
     SelectTrigger,
     SelectValue,
     SelectContent,
     SelectItem,
-} from "@/components/admin/ui/select";
+} from "../../components/admin/ui/Select";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import debounce from "lodash/debounce";
@@ -18,7 +18,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle
-} from "@/components/admin/ui/card";
+} from "../../components/admin/ui/Card";
 import {
     BarChart,
     Bar,

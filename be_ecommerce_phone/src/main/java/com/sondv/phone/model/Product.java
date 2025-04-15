@@ -49,6 +49,12 @@ public class Product {
     @Min(0)
     private Integer soldQuantity = 0;
 
+    @Column(name = "rating", columnDefinition = "DOUBLE DEFAULT 0")
+    private Double rating = 0.0;
+
+    @Column(name = "rating_count", columnDefinition = "INTEGER DEFAULT 0")
+    private Integer ratingCount = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
     @JsonBackReference

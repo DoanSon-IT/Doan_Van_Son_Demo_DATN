@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import { ShoppingCart, Check } from "lucide-react";

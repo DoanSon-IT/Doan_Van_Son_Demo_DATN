@@ -5,26 +5,59 @@ import slider3 from "../../assets/slider_3.png";
 
 const Slider = () => {
     const slides = [
-        { id: 1, title: "iPhone 15 Pro Max", description: "Công nghệ dẫn đầu", image: slider1, buttonText: "Mua ngay", buttonLink: "/product/iphone-15" },
-        { id: 2, title: "Samsung Galaxy Z Fold 5", description: "Màn hình gập đột phá", image: slider2, buttonText: "Khám phá", buttonLink: "/product/z-fold-5" },
-        { id: 3, title: "Black Friday", description: "Giảm 50% cực sốc", image: slider3, buttonText: "Săn deal", buttonLink: "/shop" },
+        { id: 1, title: "iPhone 15 Pro Max", description: "Công nghệ dẫn đầu - Giảm đến 3 triệu", image: slider1, buttonText: "Mua ngay", buttonLink: "/product/iphone-15" },
+        { id: 2, title: "Samsung Galaxy Z Fold 5", description: "Màn hình gập đột phá - Quà tặng 5 triệu", image: slider2, buttonText: "Khám phá", buttonLink: "/product/z-fold-5" },
+        { id: 3, title: "Black Friday", description: "Giảm 50% cực sốc - Số lượng có hạn", image: slider3, buttonText: "Săn deal", buttonLink: "/shop" },
     ];
 
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
         if (!isHovered) {
             const interval = setInterval(() => {
-                setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+                setIsAnimating(true);
+                setTimeout(() => {
+                    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+                    setTimeout(() => {
+                        setIsAnimating(false);
+                    }, 500);
+                }, 200);
             }, 4000);
             return () => clearInterval(interval);
         }
     }, [slides.length, isHovered]);
 
-    const goToSlide = (index) => setCurrentSlide(index);
-    const goToPrevSlide = () => setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-    const goToNextSlide = () => setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+    const goToSlide = (index) => {
+        setIsAnimating(true);
+        setTimeout(() => {
+            setCurrentSlide(index);
+            setTimeout(() => {
+                setIsAnimating(false);
+            }, 500);
+        }, 200);
+    };
+
+    const goToPrevSlide = () => {
+        setIsAnimating(true);
+        setTimeout(() => {
+            setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+            setTimeout(() => {
+                setIsAnimating(false);
+            }, 500);
+        }, 200);
+    };
+
+    const goToNextSlide = () => {
+        setIsAnimating(true);
+        setTimeout(() => {
+            setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+            setTimeout(() => {
+                setIsAnimating(false);
+            }, 500);
+        }, 200);
+    };
 
     return (
         <div
@@ -35,8 +68,9 @@ const Slider = () => {
             {slides.map((slide, index) => (
                 <div
                     key={slide.id}
-                    className={`absolute top-0 left-0 w-full h-full transition-opacity duration-500 ease-in-out ${index === currentSlide ? "opacity-100" : "opacity-0"
-                        }`}
+                    className={`absolute top-0 left-0 w-full h-full transition-all duration-700 ease-in-out 
+                        ${index === currentSlide ? "opacity-100 scale-100" : "opacity-0 scale-105"}
+                        ${isAnimating ? "blur-sm" : ""}`}
                 >
                     <img
                         src={slide.image}
@@ -44,50 +78,65 @@ const Slider = () => {
                         className="w-full h-full object-cover"
                         onError={(e) => (e.target.src = "https://via.placeholder.com/1200x600?text=Image+Not+Found")}
                     />
-                    <div className="absolute inset-0 bg-black/60 flex items-end justify-center px-4 sm:px-6 pb-8">
-                        <div className="text-center text-white">
-                            <h2 className="text-base sm:text-xl lg:text-3xl font-bold tracking-wide">{slide.title}</h2>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent flex items-end justify-center px-4 sm:px-6 pb-8">
+                        <div className={`text-center text-white transition-all duration-700 ${isAnimating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"}`}>
+                            <h2 className="text-base sm:text-xl lg:text-3xl font-bold tracking-wide mb-1">{slide.title}</h2>
                             <p className="mt-1 text-xs sm:text-sm lg:text-base text-gray-300">{slide.description}</p>
                             <a
                                 href={slide.buttonLink}
-                                className="mt-2 sm:mt-3 inline-block px-4 py-1 sm:px-5 sm:py-2 bg-white text-black rounded-full font-semibold hover:bg-gray-200 transition-all duration-300 text-sm sm:text-base"
+                                className="mt-2 sm:mt-3 inline-block px-4 py-1 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 text-sm sm:text-base shadow-lg"
                             >
                                 {slide.buttonText}
                             </a>
+                            <div className="mt-2 flex justify-center gap-2">
+                                <span className="inline-block px-2 py-1 bg-red-500 text-white text-xs rounded-full">HOT</span>
+                                <span className="inline-block px-2 py-1 bg-green-500 text-white text-xs rounded-full">Trả góp 0%</span>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Thêm angle gradient overlay cho hiệu ứng sang trọng */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-transparent opacity-60 mix-blend-overlay"></div>
                 </div>
             ))}
 
-            {/* Navigation Dots */}
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3">
+            {/* Navigation Dots - Cải thiện */}
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-3 sm:space-x-4 z-20">
                 {slides.map((_, index) => (
                     <button
                         key={index}
                         onClick={() => goToSlide(index)}
-                        className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${index === currentSlide ? "bg-white" : "bg-gray-600 hover:bg-gray-400"
+                        className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 transform ${index === currentSlide
+                            ? "bg-white scale-125 shadow-glow"
+                            : "bg-gray-600 hover:bg-gray-400"
                             }`}
+                        style={index === currentSlide ? { boxShadow: "0 0 10px rgba(255, 255, 255, 0.7)" } : {}}
                     />
                 ))}
             </div>
 
-            {/* Navigation Arrows */}
+            {/* Navigation Arrows - Cải thiện */}
             <button
                 onClick={goToPrevSlide}
-                className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-gray-800 bg-opacity-70 rounded-full hover:bg-opacity-90 transition-all duration-300 text-white"
+                className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
             >
-                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
             <button
                 onClick={goToNextSlide}
-                className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-gray-800 bg-opacity-70 rounded-full hover:bg-opacity-90 transition-all duration-300 text-white"
+                className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
             >
-                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
             </button>
+
+            {/* Thêm số thứ tự slide
+            <div className="absolute top-4 right-4 bg-black/50 px-3 py-1 rounded-full text-white text-sm backdrop-blur-sm">
+                {currentSlide + 1} / {slides.length}
+            </div> */}
         </div>
     );
 };

@@ -45,9 +45,9 @@ function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, forma
                             {product.name || "Sản phẩm không tên"}
                         </span>
                     </a>
-                    <div className="flex items-center mb-3">
-                        <StarRatings rating={product.rating || 0} className="flex mr-2" />
-                        <span className="text-sm text-gray-600">({product.ratingCount || 0} đánh giá)</span>
+                    <div className="flex items-center gap-2 text-sm mt-1">
+                        <StarRatings rating={product.rating || 0} className="flex" />
+                        <span className="text-gray-500">({product.ratingCount || 0})</span>
                     </div>
                     {isDiscounted ? (
                         <div className="flex items-center gap-3 mb-3">

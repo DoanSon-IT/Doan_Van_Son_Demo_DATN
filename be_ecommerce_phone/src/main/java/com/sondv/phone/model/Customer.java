@@ -20,4 +20,8 @@ public class Customer {
 
     @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
     private Integer loyaltyPoints = 0;
+
+    public String getFullName() {
+        return user != null ? user.getFullName() : null;
+    }
 }

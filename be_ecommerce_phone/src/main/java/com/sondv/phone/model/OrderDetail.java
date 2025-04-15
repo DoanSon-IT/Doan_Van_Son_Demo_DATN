@@ -1,6 +1,7 @@
 package com.sondv.phone.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,7 +23,11 @@ public class OrderDetail {
     @JsonBackReference
     private Order order;
 
-    @ManyToOne
+    @OneToOne(mappedBy = "orderDetail", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference("orderdetail-review")
+    private Review review;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 

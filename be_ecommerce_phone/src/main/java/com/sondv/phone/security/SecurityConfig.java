@@ -119,6 +119,7 @@ public class SecurityConfig {
 
                         // 🔐 CUSTOMER-only APIs
                         .requestMatchers("/api/payments/**").hasRole("CUSTOMER")
+                        .requestMatchers(HttpMethod.POST, "/api/reviews").authenticated()
 
                         // 🔓 WebSocket
                         .requestMatchers("/ws/**").permitAll()
