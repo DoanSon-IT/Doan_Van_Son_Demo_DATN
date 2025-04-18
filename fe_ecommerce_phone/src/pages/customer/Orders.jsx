@@ -77,9 +77,14 @@ const Orders = () => {
 
     const submitReview = async (orderDetailId) => {
         const review = reviewInputs[orderDetailId];
-        if (!review?.rating) return toast.error("Vui lòng chọn số sao!");
-        if ((review.comment || "").length > 300)
+
+        if (!review?.rating) {
+            return toast.error("Vui lòng chọn số sao!");
+        }
+
+        if ((review.comment || "").length > 300) {
             return toast.error("Bình luận không được vượt quá 300 ký tự!");
+        }
 
         try {
             const payload = {
@@ -87,13 +92,22 @@ const Orders = () => {
                 rating: review.rating,
                 comment: review.comment || "",
             };
-            console.log("📤 Payload gửi lên:", payload);
 
             await addReview(payload);
             toast.success("Gửi đánh giá thành công!");
-            fetchOrders();
+
+            // Reset form input
+            setReviewInputs((prev) => {
+                const newInputs = { ...prev };
+                delete newInputs[orderDetailId];
+                return newInputs;
+            });
+
+            // Cập nhật lại đơn hàng từ backend
+            await fetchOrders();
         } catch (err) {
-            toast.error("Gửi đánh giá thất bại!");
+            const msg = err?.response?.data?.message || "Gửi đánh giá thất bại!";
+            toast.error(msg);
         }
     };
 
@@ -166,7 +180,7 @@ const Orders = () => {
                                                 </span>
                                             </div>
 
-                                            {order.status === "COMPLETED" && !detail.review && (
+                                            {order.status === "COMPLETED" && !detail.review ? (
                                                 <div className="mt-2 space-y-2 border-t pt-2">
                                                     <label className="block text-sm font-medium text-gray-700">
                                                         Đánh giá sản phẩm:
@@ -189,15 +203,37 @@ const Orders = () => {
                                                         {reviewInputs[detail.id]?.comment?.length || 0} / 300
                                                     </div>
                                                     <button
+                                                        disabled={!reviewInputs[detail.id]?.rating}
                                                         onClick={() => submitReview(detail.id)}
-                                                        className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
+                                                        className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         Gửi đánh giá
                                                     </button>
                                                 </div>
-                                            )}
+                                            ) : order.status === "COMPLETED" && detail.review ? (
+                                                <div className="mt-2 border-t pt-2">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-yellow-500">
+                                                                {"\u2B50".repeat(detail.review.rating)}
+                                                            </span>
+                                                            <span className="text-sm text-gray-500">
+                                                                ({detail.review.rating}/5)
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-700">
+                                                            {detail.review.comment || "Không có bình luận"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     ))}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t text-sm text-gray-600">
+                                    <span>Phí giao hàng:</span>
+                                    <span>{order.shippingFee?.toLocaleString()} VND</span>
                                 </div>
 
                                 <div className="flex justify-between items-center mt-4 border-t pt-4">

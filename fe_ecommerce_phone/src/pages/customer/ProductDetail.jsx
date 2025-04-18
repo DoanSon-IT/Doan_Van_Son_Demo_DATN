@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom"; // Thêm useNavigate
 import StarRatings from "../../components/product/StarRatings";
+import {
+    getAverageRating,
+    getReviewCount,
+} from "../../api/apiReview";
 import ProductReviewSection from "../../components/review/ProductReviewSection";
-import { ShoppingCart, Check, CreditCard } from "lucide-react";
+import { ShoppingCart, Check, CreditCard, Shield, Clock, Truck, RotateCcw } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
@@ -17,28 +21,56 @@ const formatPrice = (price) => {
 };
 
 function ProductDetail() {
-    const { addToCart } = useContext(AppContext);
+    // Hooks phải được khai báo ở cấp cao nhất của component
+    const { addToCart, auth, setAuth } = useContext(AppContext);
+    const navigate = useNavigate(); // Sử dụng hook đúng cách
     const [product, setProduct] = useState(null);
     const { id } = useParams();
     const [isLoading, setIsLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [rating, setRating] = useState(0);
+    const [ratingCount, setRatingCount] = useState(0);
 
+    // Tách riêng việc fetch sản phẩm và đánh giá để dễ debug
     useEffect(() => {
-        fetchProductData();
+        const loadProductData = async () => {
+            setIsLoading(true);
+            try {
+                const response = await apiProduct.getProductById(id);
+                setProduct(response);
+            } catch (error) {
+                console.error("Lỗi khi tải thông tin sản phẩm:", error);
+                toast.error("Không thể tải sản phẩm, vui lòng thử lại!", { autoClose: 2000 });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        // Gọi API lấy thông tin sản phẩm
+        loadProductData();
     }, [id]);
 
-    const fetchProductData = async () => {
-        setIsLoading(true);
-        try {
-            const response = await apiProduct.getProductById(id);
-            setProduct(response);
-        } catch (error) {
-            console.error("Lỗi khi tải thông tin sản phẩm:", error);
-            setProduct(null);
-            toast.error("Không thể tải sản phẩm, vui lòng thử lại!", { autoClose: 2000 });
-        }
-        setIsLoading(false);
-    };
+    // useEffect cho đánh giá
+    useEffect(() => {
+        const loadRatingData = async () => {
+            if (!id) return;
+
+            try {
+                // Dùng Promise.all để gọi đồng thời 2 API
+                const [avgRating, reviewCount] = await Promise.all([
+                    getAverageRating(id),
+                    getReviewCount(id)
+                ]);
+
+                setRating(avgRating || 0);
+                setRatingCount(reviewCount || 0);
+            } catch (err) {
+                console.error("Lỗi khi tải thông tin đánh giá:", err);
+            }
+        };
+
+        loadRatingData();
+    }, [id]);
 
     const handleAddToCart = () => {
         toast.success(`${product.name || "Sản phẩm"} đã được thêm vào giỏ hàng!`, {
@@ -64,15 +96,35 @@ function ProductDetail() {
 
     const handleBuyNow = () => {
         handleAddToCart();
-        setTimeout(() => (window.location.href = "/cart"), 1600);
+        setTimeout(() => navigate("/cart"), 1600);
     };
 
     if (isLoading) {
-        return <p className="text-center mt-10 text-gray-400 animate__animated animate__flash">Đang tải sản phẩm...</p>;
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="text-center animate__animated animate__pulse">
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto animate-spin"></div>
+                    <p className="mt-4 text-gray-600">Đang tải thông tin sản phẩm...</p>
+                </div>
+            </div>
+        );
     }
 
     if (!product) {
-        return <p className="text-center mt-10 text-red-400">Không tìm thấy sản phẩm!</p>;
+        return (
+            <div className="text-center mt-10 py-16">
+                <div className="bg-red-50 inline-block p-5 rounded-full mb-4">
+                    <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">Không tìm thấy sản phẩm!</h2>
+                <p className="text-gray-600 mt-2">Sản phẩm bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.</p>
+                <a href="/" className="inline-block mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Quay lại trang chủ
+                </a>
+            </div>
+        );
     }
 
     const isDiscounted = product.discountedPrice && product.discountedPrice < product.sellingPrice;
@@ -83,7 +135,8 @@ function ProductDetail() {
     return (
         <>
             <div className="relative z-[1] max-w-screen-2xl mx-auto p-6 bg-white text-gray-800 font-lato animate__animated animate__fadeIn">
-                <div className="flex flex-col lg:flex-row w-full gap-x-24 justify-center">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Cột 1: Hình ảnh sản phẩm */}
                     <div className="flex flex-col items-center mb-6 lg:mb-0 relative">
                         <LazyLoadImage
                             effect="blur"
@@ -105,48 +158,111 @@ function ProductDetail() {
                                     src={img.imageUrl}
                                     alt={`Ảnh ${index + 1}`}
                                     onClick={() => setSelectedImage(img.imageUrl)}
-                                    className={`w-16 h-16 object-cover rounded cursor-pointer border-2 ${selectedImage === img.imageUrl ? "border-blue-600" : "border-gray-300"
+                                    className={`w-16 h-16 object-cover rounded cursor-pointer border-2 ${selectedImage === img.imageUrl ? "border-black" : "border-gray-300"
                                         }`}
                                 />
                             ))}
                         </div>
                     </div>
-                    <div className="flex flex-col w-full lg:max-w-lg">
+
+                    {/* Cột 2: Thông tin sản phẩm */}
+                    <div className="flex flex-col">
                         <h1 className="text-3xl mb-2 font-bold text-gray-800 animate__animated animate__bounceIn">
                             {product.name || "Tên sản phẩm không có"}
                         </h1>
                         <div className="flex items-center mb-3">
-                            <StarRatings rating={product.rating || 0} className="flex mr-2" />
-                            <span className="text-sm text-gray-600">({product.ratingCount || 0} đánh giá)</span>
+                            <StarRatings rating={rating} className="flex mr-2" />
+                            <span className="text-sm text-gray-600">({ratingCount} đánh giá)</span>
                         </div>
                         <div className="pt-3 pb-3 border-b border-gray-100 mb-4">
                             {isDiscounted ? (
                                 <div className="flex items-center gap-3">
-                                    <span className="text-2xl font-bold text-blue-600">{formatPrice(product.discountedPrice)}</span>
+                                    <span className="text-2xl font-bold text-black">{formatPrice(product.discountedPrice)}</span>
                                     <span className="text-sm text-gray-500 line-through">{formatPrice(product.sellingPrice)}</span>
                                 </div>
                             ) : (
-                                <span className="text-2xl font-bold text-blue-600">{formatPrice(product.sellingPrice)}</span>
+                                <span className="text-2xl font-bold text-black">{formatPrice(product.sellingPrice)}</span>
                             )}
                         </div>
                         <p className="text-base text-gray-600 mb-6">{product.description || "Mô tả không có"}</p>
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 mt-auto">
                             <button
                                 onClick={handleAddToCart}
-                                className="flex-1 flex items-center justify-center bg-white border border-blue-600 text-blue-600 py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors"
+                                className="flex-1 flex items-center justify-center bg-white border border-black text-black py-3 px-4 rounded-lg hover:bg-blue-50 transition-colors"
                             >
                                 <ShoppingCart className="w-4 h-4 mr-2" /> Giỏ hàng
                             </button>
                             <button
                                 onClick={handleBuyNow}
-                                className="flex-1 flex items-center justify-center bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors"
+                                className="flex-1 flex items-center justify-center bg-black text-white py-3 px-4 rounded-lg hover:bg-pink-600 transition-colors"
                             >
                                 <CreditCard className="w-4 h-4 mr-2" /> Mua ngay
                             </button>
                         </div>
                     </div>
+
+                    {/* Cột 3: Chính sách bảo hành */}
+                    <div className="bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-100">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <Shield className="w-5 h-5 mr-2 text-blue-700" />
+                            Chính sách bảo hành
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div className="flex items-start">
+                                <Shield className="w-5 h-5 mr-3 text-green-600 mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-gray-800">Bảo hành chính hãng</p>
+                                    <p className="text-sm text-gray-600">12 tháng bảo hành toàn bộ sản phẩm</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start">
+                                <Truck className="w-5 h-5 mr-3 text-black mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-gray-800">Giao hàng tốc độ ánh sáng</p>
+                                    <p className="text-sm text-gray-600">Nội thành 30phút sau khi đặt</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start">
+                                <RotateCcw className="w-5 h-5 mr-3 text-orange-600 mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-gray-800">Đổi trả dễ dàng</p>
+                                    <p className="text-sm text-gray-600">7 ngày đổi trả nếu sản phẩm lỗi</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start">
+                                <Clock className="w-5 h-5 mr-3 text-purple-600 mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-gray-800">Hỗ trợ 24/7</p>
+                                    <p className="text-sm text-gray-600">Đường dây nóng: 1900 9999</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-gray-200">
+                            <h4 className="font-medium text-gray-800 mb-2">Liên hệ & Hỏi đáp</h4>
+                            <div className="flex gap-2 flex-wrap">
+                                <div className="bg-white p-2 rounded border border-gray-200">
+                                    <img src="/icons/facebook.png" alt="facebook" className="h-6" />
+                                </div>
+                                <div className="bg-white p-2 rounded border border-gray-200">
+                                    <img src="/icons/tiktok.png" alt="tiktok" className="h-6" />
+                                </div>
+                                <div className="bg-white p-2 rounded border border-gray-200">
+                                    <img src="/icons/instagram.png" alt="instagram" className="h-6" />
+                                </div>
+                                <div className="bg-white p-2 rounded border border-gray-200">
+                                    <img src="/icons/youtube.png" alt="youtube" className="h-6" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+
             <ToastContainer
                 containerId="product-toast"
                 position="top-center"
@@ -158,7 +274,8 @@ function ProductDetail() {
                 newestOnTop
                 className="!fixed !top-24 !left-1/2 !-translate-x-1/2 !z-[1050] pointer-events-none"
             />
-            <ProductReviewSection productId={product.id} />
+
+            <ProductReviewSection productId={id} />
         </>
     );
 }

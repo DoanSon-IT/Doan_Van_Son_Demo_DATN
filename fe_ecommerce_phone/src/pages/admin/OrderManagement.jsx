@@ -74,6 +74,15 @@ const OrderManagement = () => {
         }
     };
 
+    const formatPaymentMethod = (method) => {
+        switch (method) {
+            case "COD": return "Thanh toán khi nhận hàng";
+            case "VNPAY": return "Thanh toán qua VNPAY";
+            case "MOMO": return "Thanh toán qua MOMO";
+            default: return "Chưa có thông tin";
+        }
+    };
+
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
         setFilters(prev => ({
@@ -118,22 +127,26 @@ const OrderManagement = () => {
     const handleUpdateStatus = async (orderId, newStatus) => {
         try {
             const response = await apiOrder.updateOrderStatus(orderId, newStatus);
+            if (!response || !response.orderDetails) {
+                throw new Error("Dữ liệu phản hồi không hợp lệ");
+            }
 
             if (newStatus === "CANCELLED") {
-                response.orderDetails.forEach(async (detail) => {
-                    await apiInventory.adjustInventory(detail.product.id, detail.quantity, "Hoàn hàng do hủy đơn");
-                });
+                await Promise.all(
+                    response.orderDetails.map(async (detail) => {
+                        await apiInventory.adjustInventory(detail.product.id, detail.quantity, "Hoàn hàng do hủy đơn");
+                    })
+                );
             }
 
             setOrders(orders.map((order) => (order.id === orderId ? response : order)));
             toast.success("Cập nhật trạng thái thành công!");
 
-            // Cập nhật thông tin chi tiết đơn hàng nếu đang mở modal
             if (selectedOrder && selectedOrder.id === orderId) {
                 setSelectedOrder(response);
             }
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || "Lỗi khi cập nhật trạng thái");
         }
     };
 
@@ -259,7 +272,7 @@ const OrderManagement = () => {
                     </button>
                     <button
                         onClick={fetchOrders}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
                         Tìm kiếm
                     </button>
@@ -402,6 +415,7 @@ const OrderManagement = () => {
                                                 >
                                                     Chi tiết
                                                 </button>
+
                                                 <div className="relative group">
                                                     <button
                                                         className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
@@ -409,35 +423,31 @@ const OrderManagement = () => {
                                                     >
                                                         Trạng thái
                                                     </button>
-                                                    <div className="absolute z-10 right-0 mt-2 w-40 bg-white rounded-md shadow-lg hidden group-hover:block border">
+
+                                                    {/* Pseudo element giữ hover không bị nhảy */}
+                                                    <div className="absolute top-full left-0 w-full h-2 bg-transparent pointer-events-none"></div>
+
+                                                    {/* Dropdown */}
+                                                    <div className="absolute z-10 right-0 top-full mt-1 w-40 bg-white rounded-md shadow-lg hidden group-hover:block border">
                                                         <div className="py-1">
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(order.id, "PENDING")}
-                                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                            >
-                                                                Đang xử lý
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(order.id, "SHIPPED")}
-                                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                            >
-                                                                Đang giao
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(order.id, "COMPLETED")}
-                                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                            >
-                                                                Đã giao
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleUpdateStatus(order.id, "CANCELLED")}
-                                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                                            >
-                                                                Đã hủy
-                                                            </button>
+                                                            {["PENDING", "SHIPPED", "COMPLETED", "CANCELLED"].map((status) => (
+                                                                <button
+                                                                    key={status}
+                                                                    onClick={() => handleUpdateStatus(order.id, status)}
+                                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-center"
+                                                                >
+                                                                    {{
+                                                                        PENDING: "Đang xử lý",
+                                                                        SHIPPED: "Đang giao",
+                                                                        COMPLETED: "Đã giao",
+                                                                        CANCELLED: "Đã hủy",
+                                                                    }[status]}
+                                                                </button>
+                                                            ))}
                                                         </div>
                                                     </div>
                                                 </div>
+
                                                 <button
                                                     onClick={() => handleDeleteOrder(order.id)}
                                                     className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
@@ -575,7 +585,7 @@ const OrderManagement = () => {
                                     </p>
                                     <p><span className="font-medium">Ngày đặt:</span> {new Date(selectedOrder.createdAt).toLocaleString('vi-VN')}</p>
                                     <p><span className="font-medium">Tổng tiền:</span> <span className="font-medium text-green-600">{selectedOrder.totalPrice.toLocaleString()} VND</span></p>
-                                    <p><span className="font-medium">Phương thức thanh toán:</span> {selectedOrder.paymentMethod || "Chưa có thông tin"}</p>
+                                    <p><span className="font-medium">Phương thức thanh toán:</span> {formatPaymentMethod(selectedOrder.paymentMethod)}</p>
                                 </div>
                             </div>
 
@@ -605,35 +615,45 @@ const OrderManagement = () => {
                                     <thead className="bg-gray-100">
                                         <tr>
                                             <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">Sản phẩm</th>
-                                            <th className="px-4 py-2 text-center text-sm font-medium text-gray-600">Số lượng</th>
+                                            <th className="px-4 py-2 text-center textscaled-sm font-medium text-gray-600">Số lượng</th>
                                             <th className="px-4 py-2 text-right text-sm font-medium text-gray-600">Đơn giá</th>
                                             <th className="px-4 py-2 text-right text-sm font-medium text-gray-600">Thành tiền</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                        {selectedOrder.orderDetails?.map((detail) => (
-                                            <tr key={detail.id} className="hover:bg-gray-100">
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center">
-                                                        <img
-                                                            src={detail.productImage || "/placeholder-image.jpg"}
-                                                            alt={detail.productName}
-                                                            className="w-12 h-12 object-cover rounded border"
-                                                            onError={(e) => {
-                                                                e.target.src = "/placeholder-image.jpg";
-                                                            }}
-                                                        />
-                                                        <div className="ml-3">
-                                                            <p className="font-medium">{detail.productName}</p>
-                                                            <p className="text-xs text-gray-500">Mã SP: {detail.product?.id || "N/A"}</p>
+                                        {selectedOrder?.orderDetails?.length > 0 ? (
+                                            selectedOrder.orderDetails.map((detail) => (
+                                                <tr key={detail.id} className="hover:bg-gray-100">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center">
+                                                            <img
+                                                                src={detail.productImage || "/placeholder-image.jpg"}
+                                                                alt={detail.productName || "Sản phẩm"}
+                                                                className="w-12 h-12 object-cover rounded border"
+                                                                onError={(e) => {
+                                                                    e.target.src = "/placeholder-image.jpg";
+                                                                }}
+                                                            />
+                                                            <div className="ml-3">
+                                                                <p className="font-medium">{detail.productName || "N/A"}</p>
+                                                                <p className="text-xs text-gray-500">Mã SP: {detail.product?.id || "N/A"}</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">{detail.quantity || 0}</td>
+                                                    <td className="px-4 py-3 text-right">{detail.price ? detail.price.toLocaleString() : "0"} VND</td>
+                                                    <td className="px-4 py-3 text-right font-medium">
+                                                        {(detail.quantity && detail.price) ? (detail.quantity * detail.price).toLocaleString() : "0"} VND
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4" className="px-4 py-3 text-center text-gray-500">
+                                                    Không có sản phẩm trong đơn hàng
                                                 </td>
-                                                <td className="px-4 py-3 text-center">{detail.quantity}</td>
-                                                <td className="px-4 py-3 text-right">{detail.price.toLocaleString()} VND</td>
-                                                <td className="px-4 py-3 text-right font-medium">{(detail.quantity * detail.price).toLocaleString()} VND</td>
                                             </tr>
-                                        ))}
+                                        )}
                                     </tbody>
                                     <tfoot className="bg-gray-50">
                                         <tr>
@@ -649,37 +669,57 @@ const OrderManagement = () => {
                             <div className="flex space-x-2">
                                 <button
                                     onClick={() => {
+                                        if (selectedOrder.status === "CANCELLED") {
+                                            toast.warn("Đơn hàng đã hủy không thể cập nhật trạng thái!");
+                                            return;
+                                        }
                                         handleUpdateStatus(selectedOrder.id, "PENDING");
                                     }}
-                                    className="px-3 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                                    className="px-3 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     disabled={selectedOrder.status === "CANCELLED"}
+                                    title={selectedOrder.status === "CANCELLED" ? "Đơn hàng đã hủy không thể cập nhật trạng thái" : ""}
                                 >
                                     Đang xử lý
                                 </button>
                                 <button
                                     onClick={() => {
+                                        if (selectedOrder.status === "CANCELLED") {
+                                            toast.warn("Đơn hàng đã hủy không thể cập nhật trạng thái!");
+                                            return;
+                                        }
                                         handleUpdateStatus(selectedOrder.id, "SHIPPED");
                                     }}
-                                    className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                    className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     disabled={selectedOrder.status === "CANCELLED"}
+                                    title={selectedOrder.status === "CANCELLED" ? "Đơn hàng đã hủy không thể cập nhật trạng thái" : ""}
                                 >
                                     Đang giao
                                 </button>
                                 <button
                                     onClick={() => {
+                                        if (selectedOrder.status === "CANCELLED") {
+                                            toast.warn("Đơn hàng đã hủy không thể cập nhật trạng thái!");
+                                            return;
+                                        }
                                         handleUpdateStatus(selectedOrder.id, "COMPLETED");
                                     }}
-                                    className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                    className="px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     disabled={selectedOrder.status === "CANCELLED"}
+                                    title={selectedOrder.status === "CANCELLED" ? "Đơn hàng đã hủy không thể cập nhật trạng thái" : ""}
                                 >
                                     Đã giao
                                 </button>
                                 <button
                                     onClick={() => {
+                                        if (selectedOrder.status === "CANCELLED") {
+                                            toast.warn("Đơn hàng đã hủy không thể cập nhật trạng thái!");
+                                            return;
+                                        }
                                         handleUpdateStatus(selectedOrder.id, "CANCELLED");
                                     }}
-                                    className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                    className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     disabled={selectedOrder.status === "CANCELLED"}
+                                    title={selectedOrder.status === "CANCELLED" ? "Đơn hàng đã hủy không thể cập nhật trạng thái" : ""}
                                 >
                                     Hủy đơn
                                 </button>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import apiPayment from "../../api/apiPayment";
-import apiUser from "../../api/apiUser";
 import apiOrder from "../../api/apiOrder";
+import apiShipping from "../../api/apiShipping";
 import { applyDiscount } from "../../api/apiDiscount";
 import AppContext from "../../context/AppContext";
 import { ToastContainer, toast } from "react-toastify";
@@ -22,33 +22,88 @@ const Checkout = () => {
     });
     const [discountCode, setDiscountCode] = useState("");
     const [discountResult, setDiscountResult] = useState(null);
+    const [shippingFee, setShippingFee] = useState(0);
+    const [estimatedDelivery, setEstimatedDelivery] = useState(null);
 
-    const isLoggedIn = !!auth; // Chỉ kiểm tra auth có tồn tại không
+    const isLoggedIn = !!auth;
+    const selectedProducts = state?.selectedProducts || [];
 
     useEffect(() => {
         if (!isLoggedIn) {
-            setShowModal(true); // Hiển thị modal nếu chưa đăng nhập
+            setShowModal(true);
         } else {
-            const fetchUserInfo = async () => {
-                try {
-                    const userData = await apiUser.getCurrentUser();
-                    setShippingInfo({
-                        address: userData.address || "",
-                        phoneNumber: userData.phone || "",
-                        carrier: "GHN",
-                    });
-                } catch (error) {
-                    console.error("Lỗi khi lấy thông tin người dùng:", error);
-                    toast.error(error.message);
-                }
-            };
-            fetchUserInfo();
+            setShippingInfo({
+                address: auth?.address || "",
+                phoneNumber: auth?.phone || "",
+                carrier: "GHN",
+            });
         }
-    }, [isLoggedIn]);
+    }, [isLoggedIn, auth]);
+
+    useEffect(() => {
+        const fetchShippingEstimate = async () => {
+            if (shippingInfo.address && shippingInfo.carrier) {
+                try {
+                    const estimate = await apiShipping.estimateShipping(
+                        shippingInfo.address,
+                        shippingInfo.carrier
+                    );
+                    setShippingFee(estimate.fee);
+                    setEstimatedDelivery(new Date(estimate.estimatedDelivery).toLocaleDateString("vi-VN"));
+                } catch (error) {
+                    toast.error(error.message);
+                    setShippingFee(0);
+                    setEstimatedDelivery(null);
+                }
+            }
+        };
+        fetchShippingEstimate();
+    }, [shippingInfo.address, shippingInfo.carrier]);
 
     const handleShippingChange = (e) => {
         const { name, value } = e.target;
         setShippingInfo((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleApplyDiscount = async () => {
+        if (!discountCode) {
+            toast.warn("Vui lòng nhập mã giảm giá!");
+            return;
+        }
+
+        try {
+            const payload = {
+                discountCode,
+                items: selectedProducts.map((item) => ({
+                    productId: item.id,
+                    quantity: item.quantity,
+                })),
+            };
+
+            const res = await applyDiscount(payload);
+            setDiscountResult(res.data);
+            toast.success("🎉 Áp mã giảm giá thành công!");
+        } catch (error) {
+            console.error("❌ Lỗi từ backend:", error?.response?.data || error);
+            const raw = error?.response?.data;
+            const message = typeof raw === "string" ? raw : raw?.message || "";
+            let friendlyMessage = "Có lỗi khi áp mã giảm giá!";
+
+            if (message.includes("đã được sử dụng")) {
+                friendlyMessage = "Mã này đã được sử dụng!";
+            } else if (message.includes("hết hạn")) {
+                friendlyMessage = "Mã giảm giá đã hết hạn!";
+            } else if (message.includes("chưa bắt đầu")) {
+                friendlyMessage = "Mã giảm giá chưa có hiệu lực!";
+            } else if (message.includes("tối thiểu")) {
+                friendlyMessage = "Đơn hàng chưa đủ điều kiện để áp mã!";
+            } else if (message.includes("không tồn tại")) {
+                friendlyMessage = "Mã giảm giá không tồn tại!";
+            }
+
+            toast.error(friendlyMessage);
+            setDiscountResult(null);
+        }
     };
 
     const handlePayment = async () => {
@@ -56,12 +111,10 @@ const Checkout = () => {
             toast.warn("Không có sản phẩm nào để thanh toán!");
             return;
         }
-
         if (!shippingInfo.address || !shippingInfo.phoneNumber) {
             toast.warn("Vui lòng nhập đầy đủ địa chỉ và số điện thoại!");
             return;
         }
-
         setIsLoading(true);
         try {
             const orderRequest = {
@@ -70,32 +123,20 @@ const Checkout = () => {
                 address: shippingInfo.address,
                 phoneNumber: shippingInfo.phoneNumber,
                 carrier: shippingInfo.carrier,
-                shippingFee: "30000",
                 discountCode: discountCode || null,
+                paymentMethod: paymentMethod,
             };
-            console.log("Order Request gửi đi:", orderRequest);
-
             const orderResponse = await apiOrder.createOrder(orderRequest);
-            console.log("Order Response nhận được:", orderResponse);
             const orderId = orderResponse.id;
 
-            const paymentRequest = {
-                orderId: orderId,
-                paymentMethod: paymentMethod,
-                amount: orderResponse.totalPrice,
-            };
-            console.log("Payment Request gửi đi:", paymentRequest);
-
-            const paymentResponse = await apiPayment.createPayment(orderId, paymentMethod);
-            console.log("Payment Response:", paymentResponse);
-            const paymentUrl = paymentResponse.paymentUrl;
+            // Lấy URL thanh toán
+            const paymentResponse = await apiPayment.getPaymentUrl(orderId);
+            const paymentUrl = paymentResponse.paymentUrl || "/order-confirmation";
 
             selectedProducts.forEach((item) => removeFromCart(item.id));
 
-            if (paymentMethod === "VNPAY") {
-                navigate("/vnpay-return", {
-                    state: { vnp_ResponseCode: "00", vnp_TxnRef: orderId },
-                });
+            if (paymentMethod === "VNPAY" || paymentMethod === "MOMO") {
+                window.location.href = paymentUrl; // Điều hướng đến VNPay/MoMo
             } else if (paymentMethod === "COD") {
                 navigate("/order-confirmation", {
                     state: {
@@ -104,21 +145,23 @@ const Checkout = () => {
                             totalPrice: orderResponse.totalPrice,
                             paymentMethod: paymentMethod,
                             products: selectedProducts,
+                            shippingFee: shippingFee,
                         },
                     },
                 });
-            } else {
-                window.location.href = paymentUrl;
             }
         } catch (error) {
             console.error("Lỗi khi xử lý thanh toán:", error);
-            toast.error(error.message || "Lỗi khi xử lý thanh toán, vui lòng thử lại!");
+            const message = error.message || "Lỗi khi xử lý thanh toán, vui lòng thử lại!";
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const selectedProducts = state?.selectedProducts || [];
+    const subtotal = selectedProducts.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const discountAmount = discountResult?.discountAmount || 0;
+    const totalPrice = subtotal - discountAmount + shippingFee;
 
     if (!isLoggedIn) {
         return (
@@ -152,49 +195,6 @@ const Checkout = () => {
             </div>
         );
     }
-
-    const handleApplyDiscount = async () => {
-        if (!discountCode) {
-            toast.warn("Vui lòng nhập mã giảm giá!");
-            return;
-        }
-
-        try {
-            const payload = {
-                discountCode,
-                items: selectedProducts.map((item) => ({
-                    productId: item.id,
-                    quantity: item.quantity,
-                })),
-            };
-
-            const res = await applyDiscount(payload);
-            setDiscountResult(res.data);
-            toast.success("🎉 Áp mã giảm giá thành công!");
-        } catch (error) {
-            console.error("❌ Lỗi từ backend:", error?.response?.data || error);
-
-            const raw = error?.response?.data;
-            const message = typeof raw === "string" ? raw : raw?.message || "";
-
-            let friendlyMessage = "Có lỗi khi áp mã giảm giá!";
-
-            if (message.includes("đã được sử dụng")) {
-                friendlyMessage = "Mã này đã được sử dụng!";
-            } else if (message.includes("hết hạn")) {
-                friendlyMessage = "Mã giảm giá đã hết hạn!";
-            } else if (message.includes("chưa bắt đầu")) {
-                friendlyMessage = "Mã giảm giá chưa có hiệu lực!";
-            } else if (message.includes("tối thiểu")) {
-                friendlyMessage = "Đơn hàng chưa đủ điều kiện để áp mã!";
-            } else if (message.includes("không tồn tại")) {
-                friendlyMessage = "Mã giảm giá không tồn tại!";
-            }
-
-            toast.error(friendlyMessage);
-            setDiscountResult(null);
-        }
-    };
 
     return (
         <div className="max-w-screen-2xl mx-auto p-9 pt-24">
@@ -237,9 +237,16 @@ const Checkout = () => {
                         </div>
                     )}
                 </div>
-                <p className="mt-2 text-right font-semibold">
-                    Tổng cộng: {selectedProducts.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
-                </p>
+                <div className="mt-4 text-right">
+                    <p>Tạm tính: {subtotal.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}</p>
+                    <p>Phí giao hàng: {shippingFee.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}</p>
+                    {discountAmount > 0 && (
+                        <p>Giảm giá: -{discountAmount.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}</p>
+                    )}
+                    <p className="font-semibold">
+                        Tổng cộng: {totalPrice.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                    </p>
+                </div>
             </div>
 
             <div className="mt-6">
@@ -273,6 +280,11 @@ const Checkout = () => {
                         <option value="GHTK">Giao Hàng Tiết Kiệm (GHTK)</option>
                         <option value="VNPOST">Viettel Post</option>
                     </select>
+                    {estimatedDelivery && (
+                        <p className="text-sm text-gray-600">
+                            Dự kiến giao hàng: {estimatedDelivery}
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -292,7 +304,7 @@ const Checkout = () => {
             <button
                 onClick={handlePayment}
                 disabled={isLoading}
-                className={`mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`mt - 6 bg - blue - 500 text - white px - 4 py - 2 rounded hover: bg - blue - 600 ${isLoading ? "opacity-50 cursor-not-allowed" : ""} `}
             >
                 {isLoading ? "Đang xử lý..." : "Xác nhận thanh toán"}
             </button>

@@ -1,4 +1,5 @@
 import axiosInstance from "./axiosConfig";
+import { getCurrentUser as authGetCurrentUser } from "./apiAuth";
 
 const apiUser = {
     getAllUsers: async () => {
@@ -32,6 +33,7 @@ const apiUser = {
         try {
             const response = await axiosInstance.post("/users/me/avatar", formData, {
                 headers: { "Content-Type": "multipart/form-data" },
+                withCredentials: true
             });
             return response.data; // Trả về URL
         } catch (error) {
@@ -41,7 +43,7 @@ const apiUser = {
 
     updateLoyaltyPoints: async (customerId, points) => {
         try {
-            return await axiosInstance.put(`/users/customers/${customerId}/loyalty-points`, points).then((res) => res.data);
+            return await axiosInstance.put(`/users/customers/${customerId}/loyalty-points`, points, { withCredentials: true }).then((res) => res.data);
         } catch (error) {
             throw new Error(error.response?.data?.message || "Lỗi khi cập nhật điểm tích lũy");
         }
@@ -49,31 +51,24 @@ const apiUser = {
 
     deleteCustomer: async (customerId) => {
         try {
-            await axiosInstance.delete(`/users/customers/${customerId}`);
+            await axiosInstance.delete(`/users/customers/${customerId}`, { withCredentials: true });
             console.log("✅ Xóa khách hàng thành công: customerId=", customerId);
         } catch (error) {
             throw new Error(error.response?.data?.message || "Lỗi khi xóa khách hàng");
         }
     },
 
-    getCurrentUser: async () => {
-        try {
-            console.log("Gửi request /users/me");
-            const res = await axiosInstance.get("/users/me");
-            console.log("Phản hồi /users/me:", res.data);
-            return res.data;
-        } catch (error) {
-            console.error("Lỗi /users/me:", error.response?.status, error.response?.data);
-            if (error.response?.status === 401) return null;
-            throw new Error(error.response?.data?.message || "Không thể lấy thông tin người dùng");
-        }
-    },
+    // Sử dụng lại hàm từ apiAuth để tránh trùng lặp
+    getCurrentUser: authGetCurrentUser,
 
     updateCurrentUser: async (userData) => {
         try {
-            return await axiosInstance.put("/users/me", userData).then((res) => res.data);
+            return await axiosInstance.put("/users/me", userData, { withCredentials: true }).then((res) => res.data);
         } catch (error) {
-            throw new Error(error.response?.data?.message || "Không thể cập nhật thông tin người dùng");
+            throw {
+                ...error.response?.data || { message: "Không thể cập nhật thông tin người dùng" },
+                status: error.response?.status
+            };
         }
     },
 };

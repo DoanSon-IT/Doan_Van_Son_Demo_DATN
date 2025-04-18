@@ -95,7 +95,7 @@ const Header = () => {
     const handleLogout = () => {
         logout();
         setUserMenuOpen(false);
-        navigate("/login");
+        navigate("/");
     };
 
     return (

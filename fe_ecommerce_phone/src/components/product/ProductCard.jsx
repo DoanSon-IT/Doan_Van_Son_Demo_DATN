@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import { ShoppingCart, CreditCard } from "lucide-react";
 import StarRatings from "./StarRatings";
 import "react-lazy-load-image-component/src/effects/blur.css";
+import { getAverageRating, getReviewCount } from "../../api/apiReview";
 
 function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, formatPrice }) {
     const imageUrl = product.images?.[0]?.imageUrl || "https://via.placeholder.com/200";
@@ -12,6 +13,38 @@ function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, forma
         : 0;
 
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [rating, setRating] = useState(product.rating || 0);
+    const [ratingCount, setRatingCount] = useState(product.ratingCount || 0);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Fetch đánh giá nếu không có sẵn
+    useEffect(() => {
+        // Chỉ fetch nếu cần
+        if (!product.rating || !product.ratingCount) {
+            fetchRatingData();
+        }
+    }, [product.id, product.rating, product.ratingCount]); // Thêm rating và ratingCount vào dependency
+
+    const fetchRatingData = async () => {
+        if (isLoading) return;  // Nếu đang fetch thì không làm gì
+
+        setIsLoading(true); // Đặt loading true trước khi gọi API
+        try {
+            if (!rating) {
+                const avgRating = await getAverageRating(product.id);
+                setRating(avgRating);
+            }
+
+            if (!ratingCount) {
+                const count = await getReviewCount(product.id);
+                setRatingCount(count);
+            }
+        } catch (error) {
+            console.error("Lỗi khi tải thông tin đánh giá:", error);
+        } finally {
+            setIsLoading(false); // Đặt loading false sau khi gọi xong
+        }
+    };
 
     return (
         <li className="max-w-sm rounded-lg overflow-hidden shadow-lg bg-white border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col h-[600px]">
@@ -46,8 +79,8 @@ function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, forma
                         </span>
                     </a>
                     <div className="flex items-center gap-2 text-sm mt-1">
-                        <StarRatings rating={product.rating || 0} className="flex" />
-                        <span className="text-gray-500">({product.ratingCount || 0})</span>
+                        <StarRatings rating={rating} className="flex" />
+                        <span className="text-gray-500">({ratingCount})</span>
                     </div>
                     {isDiscounted ? (
                         <div className="flex items-center gap-3 mb-3">

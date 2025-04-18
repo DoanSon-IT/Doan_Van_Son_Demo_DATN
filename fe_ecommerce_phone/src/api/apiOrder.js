@@ -34,7 +34,10 @@ const apiOrder = {
 
     createOrder: async (orderRequest) => {
         try {
-            return await axiosInstance.post("/orders", orderRequest, { withCredentials: true }).then((res) => res.data);
+            return await axiosInstance.post("/orders", {
+                ...orderRequest,
+                paymentMethod: orderRequest.paymentMethod ? orderRequest.paymentMethod.toUpperCase() : "COD"
+            }, { withCredentials: true }).then((res) => res.data);
         } catch (error) {
             throw new Error(error.response?.data?.message || "Lỗi khi tạo đơn hàng");
         }
