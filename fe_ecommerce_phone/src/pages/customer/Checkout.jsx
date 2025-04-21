@@ -225,7 +225,7 @@ const Checkout = () => {
                         />
                         <button
                             onClick={handleApplyDiscount}
-                            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                            className="bg-black text-white px-4 py-2 rounded hover:bg-green-600"
                         >
                             Áp dụng
                         </button>
@@ -304,10 +304,19 @@ const Checkout = () => {
             <button
                 onClick={handlePayment}
                 disabled={isLoading}
-                className={`mt - 6 bg - blue - 500 text - white px - 4 py - 2 rounded hover: bg - blue - 600 ${isLoading ? "opacity-50 cursor-not-allowed" : ""} `}
+                className={`mt-6 bg-black text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition duration-300 ease-in-out transform hover:bg-blue-600 hover:scale-105 ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-                {isLoading ? "Đang xử lý..." : "Xác nhận thanh toán"}
+                {isLoading ? (
+                    <>
+                        <span className="animate-spin">🔄</span> Đang xử lý...
+                    </>
+                ) : (
+                    <>
+                        Xác nhận thanh toán
+                    </>
+                )}
             </button>
+
             <ToastContainer />
         </div>
     );

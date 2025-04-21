@@ -54,6 +54,13 @@ const Sidebar = () => {
                         </NavLink>
                     </li>
                     <li>
+                        <NavLink to="/admin/users" className={({ isActive }) =>
+                            `block px-6 py-3 ${isActive ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"} font-medium transition-all rounded-r-full`
+                        }>
+                            <FaUserTie className="inline-block mr-3" /> Quản lý tài khoản
+                        </NavLink>
+                    </li>
+                    <li>
                         <NavLink to="/admin/suppliers" className={({ isActive }) =>
                             `block px-6 py-3 ${isActive ? "bg-purple-100 text-purple-700 dark:bg-purple-800 dark:text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"} font-medium transition-all rounded-r-full`
                         }>

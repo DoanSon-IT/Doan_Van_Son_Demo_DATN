@@ -20,6 +20,7 @@ const Orders = lazy(() => import("../pages/customer/Orders"));
 const Profile = lazy(() => import("../pages/customer/Profile"));
 const OrderConfirmation = lazy(() => import("../pages/customer/OrderConfirmation"));
 const VNPayReturn = lazy(() => import("../pages/customer/VNPayReturn"));
+const PaymentFailed = lazy(() => import("../pages/customer/PaymentFailed"));
 
 // ✅ Component loading
 const Loading = () => (
@@ -130,11 +131,21 @@ const CustomerRoutes = () => {
                     }
                 />
                 <Route
-                    path="vnpay-return"
+                    path="payment/vnpay-return"
                     element={
                         <ProtectedRoute>
                             <Suspense fallback={<Loading />}>
                                 <VNPayReturn />
+                            </Suspense>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="payment-failed"
+                    element={
+                        <ProtectedRoute>
+                            <Suspense fallback={<Loading />}>
+                                <PaymentFailed />
                             </Suspense>
                         </ProtectedRoute>
                     }

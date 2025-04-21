@@ -32,7 +32,8 @@ const AdminRoutes = () => {
                 <Route path="dashboard" element={lazyLoad("Dashboard")} />
                 <Route path="products" element={lazyLoad("ProductManagement")} />
                 <Route path="orders" element={lazyLoad("OrderManagement")} />
-                <Route path="customers" element={lazyLoad("UserCustomerManagement")} />
+                <Route path="customers" element={lazyLoad("CustomerManagement")} />
+                <Route path="users" element={lazyLoad("UserManagement")} />
                 <Route path="categories" element={lazyLoad("CategoryManagement")} />
                 <Route path="suppliers" element={lazyLoad("SupplierManagement")} />
                 <Route path="employees" element={lazyLoad("EmployeeManagement")} />

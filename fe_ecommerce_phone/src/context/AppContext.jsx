@@ -38,6 +38,7 @@ export const AppProvider = ({ children }) => {
             "/auth/login",
             "/auth/register",
             "/auth/forgot-password",
+            "/cart",
         ];
         if (publicRoutes.includes(pathname)) return true;
         const isProductDetail = !!pathname.match(/\/products?\/\d+/);

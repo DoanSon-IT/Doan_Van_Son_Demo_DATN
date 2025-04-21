@@ -636,7 +636,7 @@ const OrderManagement = () => {
                                                             />
                                                             <div className="ml-3">
                                                                 <p className="font-medium">{detail.productName || "N/A"}</p>
-                                                                <p className="text-xs text-gray-500">Mã SP: {detail.product?.id || "N/A"}</p>
+                                                                <p className="text-xs text-gray-500">Mã SP: {detail.productId || "N/A"}</p>
                                                             </div>
                                                         </div>
                                                     </td>

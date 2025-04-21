@@ -18,12 +18,9 @@ import { motion } from "framer-motion";
 // Ánh xạ trạng thái đơn hàng sang tiếng Việt
 const orderStatusMap = {
   "PENDING": "Chờ xác nhận",
-  "PROCESSING": "Đang xử lý",
-  "SHIPPING": "Đang vận chuyển",
-  "DELIVERED": "Đã giao hàng",
+  "SHIPPED": "Đang vận chuyển",
   "CANCELLED": "Đã hủy",
   "COMPLETED": "Hoàn thành",
-  "RETURNED": "Trả hàng"
 };
 
 // Styling cho các Card thống kê
@@ -778,10 +775,10 @@ const Dashboard = () => {
                       stats?.usersCountByRegion?.south || 0,
                     ],
                     backgroundColor: [
-                      "rgba(59, 130, 246, 0.6)",  
-                      "rgba(16, 185, 129, 0.6)",   
-                      "rgba(139, 92, 246, 0.6)",   
-                      "rgba(245, 158, 11, 0.6)",   
+                      "rgba(59, 130, 246, 0.6)",
+                      "rgba(16, 185, 129, 0.6)",
+                      "rgba(139, 92, 246, 0.6)",
+                      "rgba(245, 158, 11, 0.6)",
                     ],
                     borderWidth: 1
                   }
