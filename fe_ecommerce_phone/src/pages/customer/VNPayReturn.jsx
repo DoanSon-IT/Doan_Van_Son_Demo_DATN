@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import apiPayment from "../../api/apiPayment";
+import apiOrder from "../../api/apiOrder";
+import "react-toastify/dist/ReactToastify.css";
 
 const VNPayReturn = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [orderDetails, setOrderDetails] = useState(null);
 
     useEffect(() => {
         const handleVNPayReturn = async () => {
@@ -15,155 +17,186 @@ const VNPayReturn = () => {
                 // Get all VNPay parameters
                 const vnpResponseCode = searchParams.get("vnp_ResponseCode");
                 const vnpTxnRef = searchParams.get("vnp_TxnRef");
-                const vnpOrderInfo = searchParams.get("vnp_OrderInfo");
                 const vnpTransactionNo = searchParams.get("vnp_TransactionNo");
+                const vnpAmount = searchParams.get("vnp_Amount");
+                const vnpBankCode = searchParams.get("vnp_BankCode");
+                const vnpPayDate = searchParams.get("vnp_PayDate");
+                const vnpOrderInfo = searchParams.get("vnp_OrderInfo");
 
-                console.log("Processing VNPay return with:", {
-                    code: vnpResponseCode,
-                    ref: vnpTxnRef,
-                    orderInfo: vnpOrderInfo,
-                    transactionNo: vnpTransactionNo
+                console.log("VNPay Return Parameters:", {
+                    vnpResponseCode,
+                    vnpTxnRef,
+                    vnpTransactionNo,
+                    vnpAmount,
+                    vnpBankCode,
+                    vnpPayDate,
+                    vnpOrderInfo,
                 });
 
+                // Validate required parameters
                 if (!vnpTxnRef) {
-                    throw new Error("Không tìm thấy mã giao dịch");
+                    throw new Error("Không tìm thấy mã giao dịch từ VNPay");
                 }
 
-                // If payment is successful
-                if (vnpResponseCode === "00") {
-                    // Extract potential orderId from the TxnRef or OrderInfo
-                    // VNPay might return the original orderId in one of these fields
-                    let potentialOrderId = vnpTxnRef;
-
-                    // Try to extract orderId from vnp_OrderInfo if it contains our expected format
-                    if (vnpOrderInfo && vnpOrderInfo.includes("Thanh toan don hang:")) {
-                        const orderIdMatch = vnpOrderInfo.match(/Thanh toan don hang: (\d+)/);
-                        if (orderIdMatch && orderIdMatch[1]) {
-                            potentialOrderId = orderIdMatch[1];
-                            console.log("Extracted orderId from OrderInfo:", potentialOrderId);
-                        }
-                    }
-
-                    // Save transaction details to localStorage for debugging/recovery
-                    localStorage.setItem("lastVnpayTransaction", JSON.stringify({
-                        txnRef: vnpTxnRef,
-                        responseCode: vnpResponseCode,
-                        orderInfo: vnpOrderInfo,
-                        transactionNo: vnpTransactionNo,
-                        timestamp: new Date().toISOString()
-                    }));
-
-                    // First attempt: Try to fetch by what we believe is the orderId
-                    try {
-                        console.log("Attempting to fetch payment by orderId:", potentialOrderId);
-                        const payment = await apiPayment.getPayment(potentialOrderId);
-                        console.log("Payment retrieved by orderId:", payment);
-                        processSuccessfulPayment(payment);
-                    } catch (orderIdError) {
-                        console.error("Failed to fetch by orderId:", orderIdError);
-
-                        // Second attempt: Try by transaction reference
-                        try {
-                            console.log("Attempting to fetch payment by transaction ID:", vnpTxnRef);
-                            const payment = await apiPayment.getPaymentByTransaction(vnpTxnRef);
-                            console.log("Payment retrieved by transaction ID:", payment);
-                            processSuccessfulPayment(payment);
-                        } catch (txnError) {
-                            console.error("Failed to fetch by transaction ID:", txnError);
-
-                            // Last resort: Check if we have order details in localStorage
-                            const pendingOrder = localStorage.getItem("pendingOrder");
-                            if (pendingOrder) {
-                                console.log("Using pending order from localStorage");
-                                const orderDetails = JSON.parse(pendingOrder);
-                                processSuccessfulPaymentFallback(orderDetails);
-                                localStorage.removeItem("pendingOrder");
-                            } else {
-                                throw new Error("Không thể tìm thấy thông tin thanh toán sau khi thanh toán thành công");
-                            }
-                        }
-                    }
-                } else {
-                    // Handle error codes
+                // Check if payment failed
+                if (vnpResponseCode !== "00") {
                     let errorMessage = "Thanh toán thất bại";
                     switch (vnpResponseCode) {
-                        case "07": errorMessage = "Thanh toán bị từ chối bởi ngân hàng"; break;
-                        case "09": errorMessage = "Thẻ/Tài khoản không hợp lệ"; break;
-                        case "24": errorMessage = "Giao dịch không thành công"; break;
-                        default: errorMessage = `Thanh toán thất bại: Mã lỗi ${vnpResponseCode}`;
+                        case "07":
+                            errorMessage = "Thanh toán bị từ chối bởi ngân hàng";
+                            break;
+                        case "09":
+                            errorMessage = "Thẻ/Tài khoản không hợp lệ";
+                            break;
+                        case "10":
+                            errorMessage = "Xác thực thông tin thẻ không thành công";
+                            break;
+                        case "11":
+                            errorMessage = "Giao dịch đã hết hạn";
+                            break;
+                        case "24":
+                            errorMessage = "Giao dịch không thành công";
+                            break;
+                        case "51":
+                            errorMessage = "Tài khoản không đủ số dư";
+                            break;
+                        case "65":
+                            errorMessage = "Tài khoản đã vượt quá hạn mức giao dịch";
+                            break;
+                        case "75":
+                            errorMessage = "Ngân hàng đang bảo trì";
+                            break;
+                        case "99":
+                            errorMessage = "Lỗi không xác định từ ngân hàng";
+                            break;
+                        default:
+                            errorMessage = `Thanh toán thất bại (Mã lỗi: ${vnpResponseCode})`;
                     }
                     throw new Error(errorMessage);
                 }
+
+                // Payment succeeded - Get order details
+                const order = await apiOrder.getOrderById(vnpTxnRef);
+
+                // Prepare order details for confirmation page
+                const details = {
+                    orderId: order.id,
+                    paymentMethod: "VNPAY",
+                    totalPrice: order.totalPrice || 0,
+                    shippingFee: order.shippingFee || 0,
+                    paymentStatus: "PAID",
+                    transactionId: vnpTransactionNo,
+                    bankCode: vnpBankCode,
+                    paymentDate: formatVNPayDate(vnpPayDate),
+                    products: Array.isArray(order.orderDetails)
+                        ? order.orderDetails.map((item) => ({
+                            name: item.productName || "Unknown Product",
+                            quantity: item.quantity || 1,
+                            price: item.price || 0,
+                        }))
+                        : [],
+                };
+
+                setOrderDetails(details);
+                toast.success("Thanh toán thành công!");
+
+                // Redirect to confirmation page after a short delay
+                setTimeout(() => {
+                    navigate("/order-confirmation", { state: { orderDetails: details } });
+                }, 1500);
             } catch (error) {
-                console.error("Error processing payment return:", error);
+                console.error("Lỗi xử lý kết quả thanh toán:", error);
                 setError(error.message || "Lỗi xử lý kết quả thanh toán");
                 toast.error(error.message || "Lỗi xử lý kết quả thanh toán");
+
+                // Redirect back to cart after showing error
                 setTimeout(() => navigate("/cart"), 3000);
             } finally {
                 setLoading(false);
             }
         };
 
-        const processSuccessfulPayment = (payment) => {
-            // Prepare order details for navigation
-            const orderDetails = {
-                orderId: payment.order?.id,
-                paymentMethod: payment.paymentMethod,
-                totalPrice: payment.order?.totalPrice || 0,
-                shippingFee: payment.order?.shippingFee || 0,
-                products: Array.isArray(payment.order?.orderDetails)
-                    ? payment.order.orderDetails.map(item => ({
-                        name: item.productName || "Unknown Product",
-                        quantity: item.quantity || 1,
-                        price: item.price || 0
-                    }))
-                    : []
-            };
-
-            clearCart();
-            toast.success("Thanh toán thành công!");
-            navigate("/order-confirmation", { state: { orderDetails } });
-        };
-
-        const processSuccessfulPaymentFallback = (orderDetails) => {
-            clearCart();
-            toast.success("Thanh toán thành công!");
-            navigate("/order-confirmation", { state: { orderDetails } });
-        };
-
-        const clearCart = () => {
-            const existingCart = JSON.parse(localStorage.getItem("cart")) || [];
-            const selectedIds = JSON.parse(localStorage.getItem("selectedIds") || "[]");
-            const updatedCart = existingCart.filter(item => !selectedIds.includes(item.id));
-            localStorage.setItem("cart", JSON.stringify(updatedCart));
-            localStorage.removeItem("selectedIds");
+        // Helper function to format VNPay date (yyyyMMddHHmmss) to readable format
+        const formatVNPayDate = (vnpayDate) => {
+            if (!vnpayDate) return "";
+            try {
+                const year = vnpayDate.substring(0, 4);
+                const month = vnpayDate.substring(4, 6);
+                const day = vnpayDate.substring(6, 8);
+                const hour = vnpayDate.substring(8, 10);
+                const minute = vnpayDate.substring(10, 12);
+                const second = vnpayDate.substring(12, 14);
+                return `${hour}:${minute}:${second} ${day}/${month}/${year}`;
+            } catch (e) {
+                console.error("Lỗi định dạng ngày VNPay:", e);
+                return vnpayDate;
+            }
         };
 
         handleVNPayReturn();
     }, [navigate, searchParams]);
 
     return (
-        <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
+        <div className="flex items-center justify-center min-h-[60vh] bg-gray-50 dark:bg-gray-900">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md text-center">
                 {loading ? (
                     <>
                         <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin mx-auto"></div>
-                        <p className="mt-4">Đang xử lý kết quả thanh toán...</p>
+                        <p className="mt-4 text-gray-600 dark:text-gray-300">
+                            Đang xử lý kết quả thanh toán...
+                        </p>
                     </>
                 ) : error ? (
                     <div className="text-red-500">
-                        <svg className="w-12 h-12 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <svg
+                            className="w-12 h-12 mx-auto text-red-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
                         </svg>
+                        <h3 className="text-xl font-bold mt-4">Thanh toán không thành công</h3>
                         <p className="mt-2">{error}</p>
-                        <p className="mt-2 text-sm text-gray-600">Đang chuyển về giỏ hàng...</p>
+                        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                            Bạn sẽ được chuyển về giỏ hàng...
+                        </p>
                     </div>
                 ) : (
                     <div className="text-green-500">
-                        <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        <svg
+                            className="w-12 h-12 mx-auto"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M5 13l4 4L19 7"
+                            ></path>
                         </svg>
-                        <p className="mt-2">Thanh toán thành công!</p>
+                        <h3 className="text-xl font-bold mt-4">Thanh toán thành công!</h3>
+                        <p className="mt-2 text-gray-600 dark:text-gray-300">
+                            Đơn hàng #{orderDetails?.orderId} đã được xác nhận
+                        </p>
+                        <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <p className="font-medium">Số tiền: {(orderDetails?.totalPrice || 0).toLocaleString("vi-VN")} VND</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Mã giao dịch: {orderDetails?.transactionId}
+                            </p>
+                        </div>
+                        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                            Đang chuyển đến trang xác nhận...
+                        </p>
                     </div>
                 )}
             </div>

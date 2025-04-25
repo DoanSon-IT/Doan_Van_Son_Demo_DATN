@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // Thêm useNavigate
+import { useParams, useNavigate } from "react-router-dom";
 import StarRatings from "../../components/product/StarRatings";
+import ProductCard from "../../components/product/ProductCard"; // Thêm import
 import {
     getAverageRating,
     getReviewCount,
@@ -21,17 +22,16 @@ const formatPrice = (price) => {
 };
 
 function ProductDetail() {
-    // Hooks phải được khai báo ở cấp cao nhất của component
     const { addToCart, auth, setAuth } = useContext(AppContext);
-    const navigate = useNavigate(); // Sử dụng hook đúng cách
+    const navigate = useNavigate();
     const [product, setProduct] = useState(null);
+    const [relatedProducts, setRelatedProducts] = useState([]);
     const { id } = useParams();
     const [isLoading, setIsLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(null);
     const [rating, setRating] = useState(0);
     const [ratingCount, setRatingCount] = useState(0);
 
-    // Tách riêng việc fetch sản phẩm và đánh giá để dễ debug
     useEffect(() => {
         const loadProductData = async () => {
             setIsLoading(true);
@@ -46,17 +46,25 @@ function ProductDetail() {
             }
         };
 
-        // Gọi API lấy thông tin sản phẩm
+        const loadRelatedProducts = async () => {
+            try {
+                const response = await apiProduct.getRelatedProducts(id, 5);
+                setRelatedProducts(response);
+            } catch (error) {
+                console.error("Lỗi khi tải sản phẩm tương tự:", error);
+                setRelatedProducts([]);
+            }
+        };
+
         loadProductData();
+        loadRelatedProducts();
     }, [id]);
 
-    // useEffect cho đánh giá
     useEffect(() => {
         const loadRatingData = async () => {
             if (!id) return;
 
             try {
-                // Dùng Promise.all để gọi đồng thời 2 API
                 const [avgRating, reviewCount] = await Promise.all([
                     getAverageRating(id),
                     getReviewCount(id)
@@ -72,7 +80,7 @@ function ProductDetail() {
         loadRatingData();
     }, [id]);
 
-    const handleAddToCart = () => {
+    const handleAddToCart = (product) => {
         toast.success(`${product.name || "Sản phẩm"} đã được thêm vào giỏ hàng!`, {
             icon: <ShoppingCart className="text-green-500" size={18} />,
             position: "top-center",
@@ -94,8 +102,8 @@ function ProductDetail() {
         });
     };
 
-    const handleBuyNow = () => {
-        handleAddToCart();
+    const handleBuyNow = (product) => {
+        handleAddToCart(product);
         setTimeout(() => navigate("/cart"), 1600);
     };
 
@@ -158,8 +166,7 @@ function ProductDetail() {
                                     src={img.imageUrl}
                                     alt={`Ảnh ${index + 1}`}
                                     onClick={() => setSelectedImage(img.imageUrl)}
-                                    className={`w-16 h-16 object-cover rounded cursor-pointer border-2 ${selectedImage === img.imageUrl ? "border-black" : "border-gray-300"
-                                        }`}
+                                    className={`w-16 h-16 object-cover rounded cursor-pointer border-2 ${selectedImage === img.imageUrl ? "border-black" : "border-gray-300"}`}
                                 />
                             ))}
                         </div>
@@ -187,13 +194,13 @@ function ProductDetail() {
                         <p className="text-base text-gray-600 mb-6">{product.description || "Mô tả không có"}</p>
                         <div className="flex gap-4 mt-auto">
                             <button
-                                onClick={handleAddToCart}
+                                onClick={() => handleAddToCart(product)}
                                 className="flex-1 flex items-center justify-center bg-white border border-black text-black py-3 px-4 rounded-lg hover:bg-blue-50 transition-colors"
                             >
                                 <ShoppingCart className="w-4 h-4 mr-2" /> Giỏ hàng
                             </button>
                             <button
-                                onClick={handleBuyNow}
+                                onClick={() => handleBuyNow(product)}
                                 className="flex-1 flex items-center justify-center bg-black text-white py-3 px-4 rounded-lg hover:bg-pink-600 transition-colors"
                             >
                                 <CreditCard className="w-4 h-4 mr-2" /> Mua ngay
@@ -207,7 +214,6 @@ function ProductDetail() {
                             <Shield className="w-5 h-5 mr-2 text-blue-700" />
                             Chính sách bảo hành
                         </h3>
-
                         <div className="space-y-4">
                             <div className="flex items-start">
                                 <Shield className="w-5 h-5 mr-3 text-green-600 mt-0.5" />
@@ -216,7 +222,6 @@ function ProductDetail() {
                                     <p className="text-sm text-gray-600">12 tháng bảo hành toàn bộ sản phẩm</p>
                                 </div>
                             </div>
-
                             <div className="flex items-start">
                                 <Truck className="w-5 h-5 mr-3 text-black mt-0.5" />
                                 <div>
@@ -224,7 +229,6 @@ function ProductDetail() {
                                     <p className="text-sm text-gray-600">Nội thành 30phút sau khi đặt</p>
                                 </div>
                             </div>
-
                             <div className="flex items-start">
                                 <RotateCcw className="w-5 h-5 mr-3 text-orange-600 mt-0.5" />
                                 <div>
@@ -232,7 +236,6 @@ function ProductDetail() {
                                     <p className="text-sm text-gray-600">7 ngày đổi trả nếu sản phẩm lỗi</p>
                                 </div>
                             </div>
-
                             <div className="flex items-start">
                                 <Clock className="w-5 h-5 mr-3 text-purple-600 mt-0.5" />
                                 <div>
@@ -241,7 +244,6 @@ function ProductDetail() {
                                 </div>
                             </div>
                         </div>
-
                         <div className="mt-6 pt-4 border-t border-gray-200">
                             <h4 className="font-medium text-gray-800 mb-2">Liên hệ & Hỏi đáp</h4>
                             <div className="flex gap-2 flex-wrap">
@@ -276,6 +278,25 @@ function ProductDetail() {
             />
 
             <ProductReviewSection productId={id} />
+
+            {/* Section Sản phẩm tương tự */}
+            {relatedProducts.length > 0 && (
+                <div className="max-w-screen-2xl mx-auto p-6">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Sản phẩm tương tự</h2>
+                    <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {relatedProducts.map((relatedProduct) => (
+                            <ProductCard
+                                key={relatedProduct.id}
+                                product={relatedProduct}
+                                isFeatured={relatedProduct.isFeatured || false}
+                                handleAddToCart={handleAddToCart}
+                                handleBuyNow={handleBuyNow}
+                                formatPrice={formatPrice}
+                            />
+                        ))}
+                    </ul>
+                </div>
+            )}
         </>
     );
 }

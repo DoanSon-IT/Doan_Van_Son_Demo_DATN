@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import AppContext from "../../context/AppContext";
 import apiOrder from "../../api/apiOrder";
+import apiPayment from "../../api/apiPayment";
 import { addReview } from "../../api/apiReview";
 import { ToastContainer, toast } from "react-toastify";
 import ReactPaginate from "react-paginate";
@@ -17,22 +18,35 @@ const Orders = () => {
     const [reviewInputs, setReviewInputs] = useState({});
     const ordersPerPage = 5;
 
-    const statusTranslations = {
+    const orderStatusTranslations = {
         PENDING: "Chờ xác nhận",
+        CONFIRMED: "Đã xác nhận",
         SHIPPED: "Đang giao hàng",
         COMPLETED: "Giao hàng thành công",
         CANCELLED: "Đã hủy",
     };
 
+    const paymentStatusTranslations = {
+        PENDING: "Chờ thanh toán",
+        PROCESSING: "Đang xử lý thanh toán",
+        PAID: "Đã thanh toán",
+        AWAITING_DELIVERY: "Chờ giao hàng",
+        FAILED: "Thanh toán thất bại",
+        CANCELLED: "Thanh toán bị hủy",
+    };
+
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const data = await apiOrder.getOrders();
-            const sortedData = data.sort(
+            const ordersData = await apiOrder.getOrders();
+            const sortedData = ordersData.sort(
                 (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
             );
+
+            // Không cần gọi apiPayment.getPayment, paymentStatus đã có trong ordersData
             setOrders(sortedData);
         } catch (error) {
+            console.error("Lỗi lấy danh sách đơn hàng:", error);
             toast.error(error.message || "Không thể tải danh sách đơn hàng!");
         } finally {
             setIsLoading(false);
@@ -50,7 +64,11 @@ const Orders = () => {
                 toast.success("Hủy đơn hàng thành công!");
                 fetchOrders();
             } catch (error) {
-                toast.error(error.message || "Không thể hủy đơn hàng!");
+                const message =
+                    error.message.includes("trạng thái hiện tại")
+                        ? "Chỉ có thể hủy đơn hàng ở trạng thái Chờ xác nhận!"
+                        : error.message || "Không thể hủy đơn hàng!";
+                toast.error(message);
             }
         }
     };
@@ -139,18 +157,22 @@ const Orders = () => {
                                             Ngày đặt: {new Date(order.createdAt).toLocaleString()}
                                         </p>
                                     </div>
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-sm font-medium ${order.status === "COMPLETED"
-                                            ? "bg-green-100 text-green-800"
-                                            : order.status === "PENDING"
-                                                ? "bg-yellow-100 text-yellow-800"
-                                                : order.status === "SHIPPED"
-                                                    ? "bg-blue-100 text-blue-800"
-                                                    : "bg-red-100 text-red-800"
-                                            }`}
-                                    >
-                                        {statusTranslations[order.status] || order.status}
-                                    </span>
+                                    <div className="flex space-x-2">
+                                        <span
+                                            className={`px-2 py-1 rounded-full text-sm font-medium ${order.status === "COMPLETED"
+                                                    ? "bg-green-100 text-green-800"
+                                                    : order.status === "PENDING"
+                                                        ? "bg-yellow-100 text-yellow-800"
+                                                        : order.status === "CONFIRMED"
+                                                            ? "bg-purple-100 text-purple-800"
+                                                            : order.status === "SHIPPED"
+                                                                ? "bg-blue-100 text-blue-800"
+                                                                : "bg-red-100 text-red-800"
+                                                }`}
+                                        >
+                                            {orderStatusTranslations[order.status] || order.status}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="mt-4 space-y-3">

@@ -35,6 +35,13 @@ const apiProduct = {
         return response.data;
     },
 
+    getRelatedProducts: async (id, limit = 5) => {
+        const response = await axiosInstance.get(`/products/${id}/related`, {
+            params: { limit }
+        });
+        return response.data;
+    },
+
     getFilteredProducts: async (
         filtersOrKeyword = "",
         minPrice = null,
@@ -54,7 +61,6 @@ const apiProduct = {
                 size: f.size ?? 10,
             };
 
-            // ✅ Chỉ set minPrice và maxPrice nếu hợp lệ
             if (f.minPrice !== "" && f.minPrice !== null && !isNaN(f.minPrice)) {
                 params.minPrice = Number(f.minPrice);
             }
@@ -62,7 +68,6 @@ const apiProduct = {
             if (f.maxPrice !== "" && f.maxPrice !== null && !isNaN(f.maxPrice)) {
                 params.maxPrice = Number(f.maxPrice);
             }
-
         } else {
             params = {
                 searchKeyword: filtersOrKeyword || "",
@@ -113,7 +118,7 @@ const apiProduct = {
         const formData = new FormData();
 
         files.forEach((file) => {
-            formData.append("files", file); 
+            formData.append("files", file);
         });
 
         const response = await axiosInstance.post(`/products/${productId}/images`, formData, {

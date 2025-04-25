@@ -20,27 +20,17 @@ const FallingFlowers = () => {
                 background: { color: "transparent" },
                 particles: {
                     number: {
-                        value: 20, 
+                        value: 20,
                         density: {
                             enable: true,
-                            area: 1200, 
+                            area: 1200,
                         },
                     },
                     shape: {
                         type: "image",
                         image: [
                             {
-                                src: "/images/sakura.png",
-                                width: 32,
-                                height: 32,
-                            },
-                            {
-                                src: "/images/canada.png",
-                                width: 32,
-                                height: 32,
-                            },
-                            {
-                                src: "/images/cuc.png",
+                                src: "/images/cuc.png", // Chỉ giữ lại hình ảnh cuc.png
                                 width: 32,
                                 height: 32,
                             },
@@ -67,7 +57,7 @@ const FallingFlowers = () => {
                     move: {
                         enable: true,
                         speed: { min: 0.4, max: 1.2 },
-                        direction: "none", // ✅ vô định
+                        direction: "none", // vô định
                         random: true,
                         straight: false,
                         outModes: {
@@ -75,13 +65,13 @@ const FallingFlowers = () => {
                         },
                         gravity: {
                             enable: true,
-                            acceleration: 0.5, // ✅ giả lập rơi
+                            acceleration: 0.5, // giả lập rơi
                             maxSpeed: 2,
                         },
                     },
                     rotate: {
                         value: { min: 0, max: 360 },
-                        direction: "clockwise", // ✅ xoay vòng
+                        direction: "clockwise", // xoay vòng
                         animation: {
                             enable: true,
                             speed: 3,

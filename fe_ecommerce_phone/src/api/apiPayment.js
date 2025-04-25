@@ -13,9 +13,9 @@ const apiPayment = {
     },
 
     // Lấy thông tin thanh toán theo orderId
-    getPayment: async (orderId) => {
+    getPayment: async (paymentId) => {
         try {
-            return await axiosInstance.get(`/payments/${orderId}`, { withCredentials: true })
+            return await axiosInstance.get(`/payments/${paymentId}`, { withCredentials: true })
                 .then((res) => res.data);
         } catch (error) {
             const message = error.response?.status === 401 ? "Vui lòng đăng nhập lại!" :
@@ -26,19 +26,15 @@ const apiPayment = {
         }
     },
 
-    // Lấy thông tin thanh toán theo mã giao dịch
-    getPaymentByTransaction: async (txnRef) => {
+    getPaymentByTransaction: async (transactionId) => {
         try {
-            console.log("Fetching payment data for transaction:", txnRef);
-            const response = await axiosInstance.get(`/payments/by-transaction/${txnRef}`, { withCredentials: true });
-            console.log("Payment data response:", response.data);
-            return response.data;
+            return await axiosInstance.get(`/payments/by-transaction/${transactionId}`, { withCredentials: true })
+                .then((res) => res.data);
         } catch (error) {
-            console.error("Error fetching payment:", error.response || error);
             const message = error.response?.status === 401 ? "Vui lòng đăng nhập lại!" :
                 error.response?.status === 403 ? "Bạn không có quyền truy cập!" :
                     error.response?.status === 404 ? "Không tìm thấy thông tin thanh toán!" :
-                        error.response?.data?.message || "Lỗi khi tải thông tin thanh toán";
+                        error.response?.data?.message || "Lỗi khi lấy thông tin thanh toán";
             throw new Error(message);
         }
     },

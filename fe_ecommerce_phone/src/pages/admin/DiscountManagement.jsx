@@ -143,7 +143,7 @@ const DiscountManagement = () => {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="max-w-7xl mx-auto">
+            <div>
                 {/* Header with stats */}
                 <div className="mb-6 flex flex-col md:flex-row justify-between items-center">
                     <h1 className="text-3xl font-bold text-gray-800 mb-4 md:mb-0">Quản Lý Mã Giảm Giá</h1>

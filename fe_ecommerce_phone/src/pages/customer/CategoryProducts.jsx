@@ -1,5 +1,4 @@
-
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import apiCategory from "../../api/apiCategory";
 import { ToastContainer, toast } from "react-toastify";
@@ -16,32 +15,42 @@ const CategoryProducts = () => {
     const [products, setProducts] = useState([]);
     const [categoryName, setCategoryName] = useState("");
     const [loading, setLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const categories = await apiCategory.getAllCategories();
-                const category = categories.find((cat) => cat.id === parseInt(id));
-                setCategoryName(category?.name || "Danh mục không xác định");
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const categories = await apiCategory.getAllCategories();
+            const category = categories.find((cat) => cat.id === parseInt(id));
+            setCategoryName(category?.name || "Danh mục không xác định");
 
-                const productsData = await apiCategory.getProductsByCategoryId(id);
-                setProducts(Array.isArray(productsData) ? productsData : []);
-            } catch (error) {
-                console.error("Lỗi khi lấy dữ liệu:", error);
-                toast.error("Không thể tải sản phẩm, vui lòng thử lại!", { autoClose: 2000 });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+            const productsData = await apiCategory.getProductsByCategoryId(id, { cacheBust: Date.now() });
+            setProducts(Array.isArray(productsData) ? productsData : []);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            toast.error("Không thể tải sản phẩm, vui lòng thử lại!", { autoClose: 2000 });
+        } finally {
+            setLoading(false);
+        }
     }, [id]);
 
-    const formatPrice = (price) => {
-        return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price || 0);
-    };
+    useEffect(() => {
+        fetchData();
+    }, [id, refreshKey, fetchData]);
 
-    const handleAddToCart = (product) => {
+    // Làm mới định kỳ mỗi 5 phút
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setRefreshKey(prev => prev + 1);
+        }, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const formatPrice = useCallback((price) => {
+        return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price || 0);
+    }, []);
+
+    const handleAddToCart = useCallback((product) => {
         toast(
             <div className="flex items-center w-full p-2 bg-gray-900 border-2 border-[#00ffcc] rounded-lg shadow-[0_0_10px_#00ffcc]">
                 <Check className="w-4 h-4 text-green-500 mr-1" />
@@ -72,7 +81,9 @@ const CategoryProducts = () => {
                 id: product.id,
                 quantity: 1,
                 name: product.name || "Sản phẩm không tên",
-                price: product.sellingPrice || 0,
+                price: product.discountedPrice && product.discountedPrice < product.sellingPrice &&
+                    (!product.discountExpiresAt || new Date(product.discountExpiresAt) > new Date())
+                    ? product.discountedPrice : product.sellingPrice,
                 images: product.images || [],
             });
         }
@@ -80,12 +91,12 @@ const CategoryProducts = () => {
         localStorage.setItem("cart", JSON.stringify(existingCart));
         const totalItems = existingCart.reduce((sum, item) => sum + item.quantity, 0);
         setCartCounter(totalItems);
-    };
+    }, [setCartCounter]);
 
-    const handleBuyNow = (product) => {
+    const handleBuyNow = useCallback((product) => {
         handleAddToCart(product);
         setTimeout(() => (window.location.href = "/cart"), 1600);
-    };
+    }, [handleAddToCart]);
 
     if (loading) return <div className="text-white text-center">Đang tải...</div>;
 
@@ -103,6 +114,7 @@ const CategoryProducts = () => {
                                 handleAddToCart={handleAddToCart}
                                 handleBuyNow={handleBuyNow}
                                 formatPrice={formatPrice}
+                                refreshKey={refreshKey}
                             />
                         </li>
                     ))}

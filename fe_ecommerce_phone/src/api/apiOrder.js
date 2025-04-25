@@ -9,19 +9,11 @@ const apiOrder = {
             return res.data;
         } catch (error) {
             console.error("Lỗi từ /orders:", error.response?.status, error.response?.data);
-            if (error.response?.status === 401) {
-                try {
-                    await refreshToken();
-                    const retryRes = await axiosInstance.get("/orders", { withCredentials: true });
-                    return retryRes.data;
-                } catch (refreshError) {
-                    throw new Error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!");
-                }
-            }
             throw new Error(error.response?.data?.message || "Lỗi khi tải danh sách đơn hàng");
         }
     },
 
+    // Giữ nguyên các phương thức khác
     getPaginatedOrders: async (queryParams) => {
         try {
             const query = new URLSearchParams(queryParams).toString();

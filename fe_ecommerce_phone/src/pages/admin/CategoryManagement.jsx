@@ -572,7 +572,7 @@ const CategoryManagement = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="p-8 bg-white shadow-lg rounded-3xl max-w-5xl mx-auto my-10"
+            className="p-8 bg-white shadow-lg rounded-3xl my-10"
         >
             <Box className="flex justify-between items-center mb-6">
                 <Typography variant="h4" component="h2" className="text-black font-bold">

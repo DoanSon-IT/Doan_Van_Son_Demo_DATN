@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
     getCurrentUser,
@@ -9,19 +9,19 @@ import {
 
 export const AppContext = createContext();
 
-const TOKEN_REFRESH_BUFFER = 5 * 60 * 1000; // 5 phút
-const USER_CACHE_DURATION = 30 * 1000; // Cache user trong 30 giây
+const TOKEN_REFRESH_BUFFER = 5 * 60 * 1000; // 5 minutes
+const USER_CACHE_DURATION = 60 * 1000; // Cache user for 60 seconds
 
 export const AppProvider = ({ children }) => {
     const [auth, setAuth] = useState(() => {
-        const storedAuth = localStorage.getItem("auth");
+        const storedAuth = sessionStorage.getItem("auth");
         return storedAuth ? JSON.parse(storedAuth) : null;
     });
     const [authLoading, setAuthLoading] = useState(true);
     const [loading, setLoading] = useState(false);
     const [authError, setAuthError] = useState(null);
     const [cartItems, setCartItems] = useState(() => {
-        const stored = localStorage.getItem("cartItems");
+        const stored = sessionStorage.getItem("cartItems");
         return stored ? JSON.parse(stored) : [];
     });
 
@@ -29,10 +29,9 @@ export const AppProvider = ({ children }) => {
     const location = useLocation();
     const isVerifyingRef = useRef(false);
     const refreshTimerRef = useRef(null);
-    const userCacheRef = useRef({ data: null, timestamp: 0 });
+    const userCacheRef = useRef({ data: null, timestamp: 0 }); // Added to fix undefined error
 
-    const isPublicRoute = (pathname) => {
-        console.log("Checking route pattern:", pathname);
+    const isPublicRoute = useCallback((pathname) => {
         const publicRoutes = [
             "/",
             "/auth/login",
@@ -50,217 +49,209 @@ export const AppProvider = ({ children }) => {
             pathname.startsWith("/about") ||
             pathname.startsWith("/contact")
         );
-    };
+    }, []);
 
-    const setupRefreshTimer = (expiresAt) => {
+    const setupRefreshTimer = useCallback((expiresAt) => {
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         if (!expiresAt) return;
         const expiryTime = new Date(expiresAt).getTime();
         const currentTime = new Date().getTime();
         const timeUntilRefresh = Math.max(0, expiryTime - currentTime - TOKEN_REFRESH_BUFFER);
-        console.log(`Token sẽ được refresh sau ${timeUntilRefresh / 1000} giây`);
         refreshTimerRef.current = setTimeout(async () => {
-            console.log("Đang refresh token...");
             try {
                 await handleRefreshToken();
             } catch (err) {
-                console.error("Lỗi refresh token:", err);
+                console.error("Refresh token error:", err);
                 logout();
             }
         }, timeUntilRefresh);
-    };
+    }, []);
 
-    const handleRefreshToken = async () => {
-        try {
-            const result = await refreshToken();
-            console.log("Refresh token thành công:", result);
-            const now = Date.now();
-            // Kiểm tra cache
-            if (
-                userCacheRef.current.data &&
-                now - userCacheRef.current.timestamp < USER_CACHE_DURATION
-            ) {
-                console.log("Sử dụng user từ cache trong handleRefreshToken:", userCacheRef.current.data);
-                setAuth(userCacheRef.current.data);
-                if (userCacheRef.current.data.expiresAt) setupRefreshTimer(userCacheRef.current.data.expiresAt);
+    const handleRefreshToken = useCallback(async () => {
+        let retryCount = 0;
+        const maxRetries = 3;
+        while (retryCount < maxRetries) {
+            try {
+                const result = await refreshToken();
+                const now = Date.now();
+                if (
+                    userCacheRef.current.data &&
+                    now - userCacheRef.current.timestamp < USER_CACHE_DURATION
+                ) {
+                    setAuth(userCacheRef.current.data);
+                    if (userCacheRef.current.data.expiresAt) setupRefreshTimer(userCacheRef.current.data.expiresAt);
+                    return true;
+                }
+                const user = await getCurrentUser();
+                setAuth(user);
+                sessionStorage.setItem("auth", JSON.stringify(user));
+                userCacheRef.current = { data: user, timestamp: now };
+                if (user.expiresAt) setupRefreshTimer(user.expiresAt);
                 return true;
+            } catch (error) {
+                retryCount++;
+                if (retryCount === maxRetries) {
+                    console.error("Max retries reached for refresh token:", error);
+                    setAuthError("Session expired. Please log in again.");
+                    throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
-            // Gọi getCurrentUser nếu cache không hợp lệ
-            const user = await getCurrentUser();
-            setAuth(user);
-            localStorage.setItem("auth", JSON.stringify(user));
-            userCacheRef.current = { data: user, timestamp: now };
-            if (user.expiresAt) setupRefreshTimer(user.expiresAt);
-            return true;
-        } catch (error) {
-            console.error("Lỗi khi refresh token:", error);
-            setAuthError("Phiên đăng nhập hết hạn");
-            throw error;
         }
-    };
+    }, [setupRefreshTimer]);
 
-    const verifyAuth = async () => {
-        if (isVerifyingRef.current) {
-            console.log("Đang xác thực, bỏ qua verifyAuth");
-            return;
-        }
+    const verifyAuth = useCallback(async () => {
+        if (isVerifyingRef.current) return;
         isVerifyingRef.current = true;
 
         try {
-            console.log("verifyAuth triggered for route:", location.pathname, "Is public?", isPublicRoute(location.pathname));
-
-            // Route công khai
             if (isPublicRoute(location.pathname)) {
                 if (auth) {
                     setAuthLoading(false);
                     return;
                 }
-                const storedAuth = localStorage.getItem("auth");
+                const storedAuth = sessionStorage.getItem("auth");
                 if (storedAuth) {
                     const parsedAuth = JSON.parse(storedAuth);
-                    setAuth(parsedAuth);
-                    userCacheRef.current = { data: parsedAuth, timestamp: Date.now() };
-                    if (parsedAuth.expiresAt) setupRefreshTimer(parsedAuth.expiresAt);
+                    const now = Date.now();
+                    if (parsedAuth.expiresAt && new Date(parsedAuth.expiresAt) > new Date(now + TOKEN_REFRESH_BUFFER)) {
+                        setAuth(parsedAuth);
+                        userCacheRef.current = { data: parsedAuth, timestamp: now };
+                        setupRefreshTimer(parsedAuth.expiresAt);
+                    } else {
+                        sessionStorage.removeItem("auth");
+                    }
                 }
                 setAuthLoading(false);
                 return;
             }
 
-            // Route riêng tư: Kiểm tra cache
             const now = Date.now();
             if (
                 userCacheRef.current.data &&
                 now - userCacheRef.current.timestamp < USER_CACHE_DURATION
             ) {
-                console.log("Sử dụng user từ cache:", userCacheRef.current.data);
                 setAuth(userCacheRef.current.data);
                 if (userCacheRef.current.data.expiresAt) setupRefreshTimer(userCacheRef.current.data.expiresAt);
                 setAuthLoading(false);
                 return;
             }
 
-            // Kiểm tra auth hiện tại
             if (auth && auth.expiresAt && new Date(auth.expiresAt) > new Date(now + TOKEN_REFRESH_BUFFER)) {
-                console.log("Token còn hợp lệ, không gọi getCurrentUser");
                 userCacheRef.current = { data: auth, timestamp: now };
                 setupRefreshTimer(auth.expiresAt);
                 setAuthLoading(false);
                 return;
             }
 
-            // Gọi getCurrentUser
-            console.log("Calling getCurrentUser with HTTP-only cookie");
             const user = await getCurrentUser();
-            console.log("getCurrentUser response:", user);
             setAuth(user);
-            localStorage.setItem("auth", JSON.stringify(user));
+            sessionStorage.setItem("auth", JSON.stringify(user));
             userCacheRef.current = { data: user, timestamp: now };
             if (user.expiresAt) setupRefreshTimer(user.expiresAt);
             setAuthError(null);
         } catch (error) {
-            console.error("verifyAuth error:", error);
+            console.error("Verify auth error:", error);
             if (error.status === 401 || error.status === 403) {
                 try {
                     await handleRefreshToken();
                     return;
                 } catch (refreshError) {
-                    setAuthError("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-                    localStorage.removeItem("auth");
+                    setAuthError("Session expired. Please log in again.");
+                    sessionStorage.removeItem("auth");
                     setAuth(null);
                 }
             } else {
-                setAuthError(error.message || "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+                setAuthError(error.message || "Session expired. Please log in again.");
             }
         } finally {
             isVerifyingRef.current = false;
             setAuthLoading(false);
         }
-    };
+    }, [auth, location.pathname, isPublicRoute, setupRefreshTimer, handleRefreshToken]);
 
     useEffect(() => {
         verifyAuth();
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         };
-    }, [location.pathname]);
+    }, [verifyAuth]);
 
     useEffect(() => {
         if (authError && !isPublicRoute(location.pathname)) {
-            console.log("Redirecting to login due to authError:", authError);
             const returnUrl = location.pathname;
             navigate("/auth/login", {
                 state: { reason: authError || "session_expired", returnUrl }
             });
         }
-    }, [authError, location.pathname, navigate]);
+    }, [authError, location.pathname, navigate, isPublicRoute]);
 
-    const login = async (credentials) => {
+    const login = useCallback(async (credentials) => {
         setLoading(true);
         try {
             const res = await loginUser(credentials);
             if (res.message === "Đăng nhập thành công") {
                 const user = await getCurrentUser();
                 setAuth(user);
-                localStorage.setItem("auth", JSON.stringify(user));
+                sessionStorage.setItem("auth", JSON.stringify(user));
                 userCacheRef.current = { data: user, timestamp: Date.now() };
                 if (user.expiresAt) setupRefreshTimer(user.expiresAt);
                 setAuthError(null);
                 return user;
             }
-            throw new Error(res.message || "Đăng nhập thất bại");
+            throw new Error(res.message || "Login failed");
         } catch (err) {
             setAuth(null);
-            localStorage.removeItem("auth");
-            setAuthError(err.message || "Đăng nhập thất bại");
+            sessionStorage.removeItem("auth");
+            setAuthError(err.message || "Login failed");
             throw err;
         } finally {
             setLoading(false);
         }
-    };
+    }, [setupRefreshTimer]);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         setLoading(true);
         try {
             await logoutUser();
         } catch (err) {
-            console.error("Đăng xuất lỗi:", err);
+            console.error("Logout error:", err);
         } finally {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
             refreshTimerRef.current = null;
             setAuth(null);
-            localStorage.removeItem("auth");
+            sessionStorage.removeItem("auth");
             setCartItems([]);
-            localStorage.clear();
             sessionStorage.clear();
             userCacheRef.current = { data: null, timestamp: 0 };
             navigate("/", { replace: true });
             setLoading(false);
         }
-    };
+    }, [navigate]);
 
-    const addToCart = (item) => {
+    const addToCart = useCallback((item) => {
         setCartItems((prev) => {
             const found = prev.find((i) => i.id === item.id);
             return found
                 ? prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))
                 : [...prev, { ...item, quantity: 1 }];
         });
-    };
+    }, []);
 
-    const removeFromCart = (itemId) => {
+    const removeFromCart = useCallback((itemId) => {
         setCartItems((prev) => prev.filter((i) => i.id !== itemId));
-    };
+    }, []);
 
-    const updateCartItemQuantity = (itemId, quantity) => {
+    const updateCartItemQuantity = useCallback((itemId, quantity) => {
         quantity <= 0
             ? removeFromCart(itemId)
             : setCartItems((prev) =>
                 prev.map((i) => (i.id === itemId ? { ...i, quantity } : i))
             );
-    };
+    }, [removeFromCart]);
 
     useEffect(() => {
-        localStorage.setItem("cartItems", JSON.stringify(cartItems));
+        sessionStorage.setItem("cartItems", JSON.stringify(cartItems));
     }, [cartItems]);
 
     return (

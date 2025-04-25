@@ -469,7 +469,7 @@ function ProductManagement() {
     };
 
     return (
-        <div className="max-w-screen-xl mx-auto p-6 bg-white shadow rounded-lg">
+        <div className="p-6 bg-white shadow rounded-lg">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold">
                     Quản lý Sản phẩm{" "}
@@ -892,8 +892,10 @@ function ProductManagement() {
                                 <thead>
                                     <tr className="bg-gray-100">
                                         <th className="p-2 text-left">Tên sản phẩm</th>
-                                        <th className="p-2 text-left">Giá bán</th>
-                                        <th className="p-2 text-left">Giá hiện tại</th>
+                                        <th className="p-2 text-left">Ảnh sản phẩm</th>
+                                        <th className="p-2 text-left">Giá nhập</th>
+                                        <th className="p-2 text-left">Giá bán (gốc)</th>
+                                        <th className="p-2 text-left">Giá hiện tại (sau giảm)</th>
                                         <th className="p-2 text-left">Tồn kho</th>
                                         <th className="p-2 text-left">Nổi bật</th>
                                         <th className="p-2 text-left">Danh mục</th>
@@ -904,7 +906,31 @@ function ProductManagement() {
                                 <tbody>
                                     {products.map((product) => (
                                         <tr key={product.id} className="border-b hover:bg-gray-50 transition-colors">
-                                            <td className="p-2">{product.name}</td>
+                                            <td className="p-2 font-semibold">
+                                                {product.isFeatured ? (
+                                                    <span className="relative inline-flex items-center gap-1 text-orange-600 font-bold">
+                                                        <span className="relative z-10">{product.name}</span>
+                                                        <span className="absolute top-0 left-0 w-full h-full rounded blur-sm opacity-40 bg-orange-400 animate-ping z-0" />
+                                                        <span className="z-10 animate-bounce">🔥</span>
+                                                    </span>
+                                                ) : (
+                                                    <span>{product.name}</span>
+                                                )}
+                                            </td>
+                                            <td className="p-2">
+                                                {product.images && product.images.length > 0 ? (
+                                                    <img
+                                                        src={product.images[0].imageUrl}
+                                                        alt={product.name}
+                                                        className="w-16 h-16 object-cover rounded"
+                                                    />
+                                                ) : (
+                                                    <div className="w-16 h-16 bg-gray-100 flex items-center justify-center text-gray-400 text-sm rounded">
+                                                        Không có ảnh
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="p-2">{product.costPrice?.toLocaleString()} VNĐ</td>
                                             <td className="p-2">{product.sellingPrice.toLocaleString()} VNĐ</td>
                                             <td className="p-2">
                                                 {product.discountedPrice &&
@@ -920,7 +946,11 @@ function ProductManagement() {
                                                         </span>
                                                     </>
                                                 ) : (
-                                                    <span>{product.sellingPrice.toLocaleString()} VNĐ</span>
+                                                    <>
+                                                        <span>{product.sellingPrice.toLocaleString()} VNĐ</span>
+                                                        <br />
+                                                        <span className="text-gray-400 italic text-sm">Không giảm giá</span>
+                                                    </>
                                                 )}
                                             </td>
                                             <td className="p-2">{product.stock}</td>

@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 // Ánh xạ trạng thái đơn hàng sang tiếng Việt
 const orderStatusMap = {
   "PENDING": "Chờ xác nhận",
+  "CONFIRMED": "Đã xác nhận",
   "SHIPPED": "Đang vận chuyển",
   "CANCELLED": "Đã hủy",
   "COMPLETED": "Hoàn thành",
@@ -481,7 +482,7 @@ const Dashboard = () => {
 
   return (
     <motion.div
-      className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen"
+      className="p-6 bg-gray-50 min-h-screen"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}

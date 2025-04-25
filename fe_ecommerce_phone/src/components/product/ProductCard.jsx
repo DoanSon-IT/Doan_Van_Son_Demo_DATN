@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import { ShoppingCart, CreditCard } from "lucide-react";
 import StarRatings from "./StarRatings";
 import "react-lazy-load-image-component/src/effects/blur.css";
 import { getAverageRating, getReviewCount } from "../../api/apiReview";
 
-function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, formatPrice }) {
+function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, formatPrice, refreshKey }) {
     const imageUrl = product.images?.[0]?.imageUrl || "https://via.placeholder.com/200";
-    const isDiscounted = product.discountedPrice && product.discountedPrice < product.sellingPrice;
+    const isDiscounted = product.discountedPrice &&
+        product.discountedPrice < product.sellingPrice &&
+        (!product.discountExpiresAt || new Date(product.discountExpiresAt) > new Date());
     const discountPercentage = isDiscounted
         ? (((product.sellingPrice - product.discountedPrice) / product.sellingPrice) * 100).toFixed(0)
         : 0;
@@ -17,34 +19,29 @@ function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, forma
     const [ratingCount, setRatingCount] = useState(product.ratingCount || 0);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Fetch đánh giá nếu không có sẵn
-    useEffect(() => {
-        // Chỉ fetch nếu cần
-        if (!product.rating || !product.ratingCount) {
-            fetchRatingData();
-        }
-    }, [product.id, product.rating, product.ratingCount]); // Thêm rating và ratingCount vào dependency
+    const fetchRatingData = useCallback(async () => {
+        if (isLoading) return;
 
-    const fetchRatingData = async () => {
-        if (isLoading) return;  // Nếu đang fetch thì không làm gì
-
-        setIsLoading(true); // Đặt loading true trước khi gọi API
+        setIsLoading(true);
         try {
-            if (!rating) {
-                const avgRating = await getAverageRating(product.id);
-                setRating(avgRating);
-            }
-
-            if (!ratingCount) {
-                const count = await getReviewCount(product.id);
-                setRatingCount(count);
-            }
+            const [avgRating, count] = await Promise.all([
+                getAverageRating(product.id),
+                getReviewCount(product.id),
+            ]);
+            setRating(avgRating || 0);
+            setRatingCount(count || 0);
         } catch (error) {
-            console.error("Lỗi khi tải thông tin đánh giá:", error);
+            console.error("Error fetching rating data:", error);
+            setRating(0);
+            setRatingCount(0);
         } finally {
-            setIsLoading(false); // Đặt loading false sau khi gọi xong
+            setIsLoading(false);
         }
-    };
+    }, [product.id]);
+
+    useEffect(() => {
+        fetchRatingData();
+    }, [product.id, refreshKey, fetchRatingData]);
 
     return (
         <li className="max-w-sm rounded-lg overflow-hidden shadow-lg bg-white border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-col h-[600px]">
@@ -79,8 +76,14 @@ function ProductCard({ product, isFeatured, handleAddToCart, handleBuyNow, forma
                         </span>
                     </a>
                     <div className="flex items-center gap-2 text-sm mt-1">
-                        <StarRatings rating={rating} className="flex" />
-                        <span className="text-gray-500">({ratingCount})</span>
+                        {isLoading ? (
+                            <span className="text-gray-500">Đang tải...</span>
+                        ) : (
+                            <>
+                                <StarRatings rating={rating} className="flex" />
+                                <span className="text-gray-500">({ratingCount})</span>
+                            </>
+                        )}
                     </div>
                     {isDiscounted ? (
                         <div className="flex items-center gap-3 mb-3">
