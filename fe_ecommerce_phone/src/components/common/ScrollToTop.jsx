@@ -20,9 +20,9 @@ const ScrollToTop = () => {
         isVisible && (
             <button
                 onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="fixed bottom-4 right-4 bg-black text-white p-3 rounded-full hover:bg-gray-200 transition-all duration-300 shadow-lg z-[999]"
+                className="fixed bottom-4 right-4 bg-black text-white p-2.5 sm:p-3 rounded-full hover:bg-gray-200 transition-all duration-300 shadow-lg z-[999]"
             >
-                ↑
+                <span className="text-lg sm:text-xl">↑</span>
             </button>
         )
     );

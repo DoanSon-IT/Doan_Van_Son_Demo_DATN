@@ -11,27 +11,22 @@ import RandomDiscount from "../components/common/RandomDiscount";
 import FallingFlowers from "../components/effects/FallingFlowers";
 
 const CustomerLayout = () => {
-
     const { auth } = useContext(AppContext);
 
     return (
-        <div className="min-h-screen bg-white w-full flex flex-col relative">
+        <div className="min-h-screen bg-white w-full flex flex-col relative overflow-x-hidden">
             <FallingFlowers />
             <AnnouncementBar />
             <Header />
-            <main className="flex w-full flex-grow">
-                <div className="w-full">
+            <main className="flex w-full flex-grow pt-[112px] relative">
+                <div className="w-full max-w-[2000px] mx-auto">
                     <Outlet />
                 </div>
             </main>
             <Footer />
-            <div className="fixed bottom-24 right-5 z-[1001]">
+            <div className="fixed bottom-24 right-5 z-[1001] flex flex-col gap-4">
                 <RandomDiscount />
-            </div>
-            <div className="fixed bottom-24 right-5 z-[1000]">
                 <SmartChatCenter userId={auth?.id || -1} />
-            </div>
-            <div className="fixed bottom-24 right-5 z-[1000]">
                 <ScrollToTop />
             </div>
         </div>

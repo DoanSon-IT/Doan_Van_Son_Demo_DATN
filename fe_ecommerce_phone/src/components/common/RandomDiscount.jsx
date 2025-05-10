@@ -97,19 +97,19 @@ const RandomDiscount = () => {
     return (
         <>
             {/* Nút nhỏ ở góc màn hình */}
-            <div className="fixed bottom-4 right-20 z-[998]">
+            <div className="fixed bottom-4 right-20 z-[998] sm:right-24 md:right-28">
                 <button
                     onClick={() => {
                         openModal();
                         handleGetDiscount();
                     }}
-                    className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg flex items-center justify-center transform hover:scale-105 transition-all duration-300"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg flex items-center justify-center transform hover:scale-105 transition-all duration-300"
                 >
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-indigo-500 border-2 border-purple-300">
-                        <Gift className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-indigo-500 border-2 border-purple-300">
+                        <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     {canSpin && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse">
+                        <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold animate-pulse">
                             1
                         </span>
                     )}
@@ -118,10 +118,10 @@ const RandomDiscount = () => {
 
             {/* Modal hiển thị kết quả */}
             {isOpen && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70 transition-opacity duration-300">
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70 transition-opacity duration-300 p-4">
                     <div
                         ref={modalRef}
-                        className="max-w-md w-full mx-4 bg-gradient-to-br from-purple-900 to-indigo-900 rounded-xl shadow-2xl overflow-hidden transition-transform duration-300 transform scale-100 animate-fadeIn"
+                        className="w-full max-w-md bg-gradient-to-br from-purple-900 to-indigo-900 rounded-xl shadow-2xl overflow-hidden transition-transform duration-300 transform scale-100 animate-fadeIn"
                     >
                         {/* Header */}
                         <div className="px-6 py-4 flex justify-between items-center">

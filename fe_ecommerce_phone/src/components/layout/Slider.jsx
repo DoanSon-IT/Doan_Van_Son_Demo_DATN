@@ -61,7 +61,7 @@ const Slider = () => {
 
     return (
         <div
-            className="relative w-full h-[30vh] sm:h-[40vh] lg:h-[50vh] xl:h-[60vh] max-h-[600px] overflow-hidden bg-black"
+            className="relative w-full h-[25vh] sm:h-[35vh] md:h-[40vh] lg:h-[50vh] xl:h-[60vh] max-h-[600px] overflow-hidden bg-black"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -78,19 +78,19 @@ const Slider = () => {
                         className="w-full h-full object-cover"
                         onError={(e) => (e.target.src = "https://via.placeholder.com/1200x600?text=Image+Not+Found")}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent flex items-end justify-center px-4 sm:px-6 pb-8">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent flex items-end justify-center px-4 sm:px-6 pb-4 sm:pb-8">
                         <div className={`text-center text-white transition-all duration-700 ${isAnimating ? "opacity-0 translate-y-4" : "opacity-100 translate-y-0"}`}>
-                            <h2 className="text-base sm:text-xl lg:text-3xl font-bold tracking-wide mb-1">{slide.title}</h2>
-                            <p className="mt-1 text-xs sm:text-sm lg:text-base text-gray-300">{slide.description}</p>
+                            <h2 className="text-sm sm:text-lg md:text-xl lg:text-3xl font-bold tracking-wide mb-1">{slide.title}</h2>
+                            <p className="mt-1 text-[10px] sm:text-sm lg:text-base text-gray-300">{slide.description}</p>
                             <a
                                 href={slide.buttonLink}
-                                className="mt-2 sm:mt-3 inline-block px-4 py-1 sm:px-5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 text-sm sm:text-base shadow-lg"
+                                className="mt-2 sm:mt-3 inline-block px-3 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 text-xs sm:text-sm md:text-base shadow-lg"
                             >
                                 {slide.buttonText}
                             </a>
-                            <div className="mt-2 flex justify-center gap-2">
-                                <span className="inline-block px-2 py-1 bg-red-500 text-white text-xs rounded-full">HOT</span>
-                                <span className="inline-block px-2 py-1 bg-green-500 text-white text-xs rounded-full">Trả góp 0%</span>
+                            <div className="mt-2 flex justify-center gap-1 sm:gap-2">
+                                <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full">HOT</span>
+                                <span className="inline-block px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-500 text-white text-[10px] sm:text-xs rounded-full">Trả góp 0%</span>
                             </div>
                         </div>
                     </div>
@@ -101,12 +101,12 @@ const Slider = () => {
             ))}
 
             {/* Navigation Dots - Cải thiện */}
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-3 sm:space-x-4 z-20">
+            <div className="absolute bottom-1 sm:bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3 z-20">
                 {slides.map((_, index) => (
                     <button
                         key={index}
                         onClick={() => goToSlide(index)}
-                        className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-300 transform ${index === currentSlide
+                        className={`w-1.5 h-1.5 sm:w-2 sm:h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 transform ${index === currentSlide
                             ? "bg-white scale-125 shadow-glow"
                             : "bg-gray-600 hover:bg-gray-400"
                             }`}
@@ -118,25 +118,20 @@ const Slider = () => {
             {/* Navigation Arrows - Cải thiện */}
             <button
                 onClick={goToPrevSlide}
-                className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
+                className="absolute left-1 sm:left-2 md:left-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-1.5 md:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
             >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                 </svg>
             </button>
             <button
                 onClick={goToNextSlide}
-                className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
+                className="absolute right-1 sm:right-2 md:right-4 top-1/2 transform -translate-y-1/2 p-1 sm:p-1.5 md:p-2 bg-white/20 rounded-full hover:bg-white/40 transition-all duration-300 text-white backdrop-blur-sm hover:scale-110"
             >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                 </svg>
             </button>
-
-            {/* Thêm số thứ tự slide
-            <div className="absolute top-4 right-4 bg-black/50 px-3 py-1 rounded-full text-white text-sm backdrop-blur-sm">
-                {currentSlide + 1} / {slides.length}
-            </div> */}
         </div>
     );
 };

@@ -272,15 +272,15 @@ const SmartChatCenter = ({ userId }) => {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="fixed bottom-24 right-5 p-4 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-blue-200 transition-all hover:scale-105 z-[101]"
+                    className="fixed bottom-24 right-5 p-3 sm:p-4 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-blue-200 transition-all hover:scale-105 z-[101]"
                     aria-label="Mở hộp chat"
                 >
-                    <MessageCircle size={24} className="drop-shadow-sm" />
+                    <MessageCircle size={20} className="sm:w-6 sm:h-6 drop-shadow-sm" />
                 </button>
             )}
 
             {isOpen && (
-                <div className="fixed bottom-5 right-5 w-[525px] sm:w-[570px] md:w-[630px] max-h-[90vh] bg-white rounded-2xl border border-gray-200 shadow-2xl flex flex-col z-[101] animate-slide-up overflow-hidden">
+                <div className="fixed bottom-5 right-5 w-[calc(100%-2rem)] sm:w-[400px] md:w-[500px] lg:w-[600px] max-h-[90vh] bg-white rounded-2xl border border-gray-200 shadow-2xl flex flex-col z-[101] animate-slide-up overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                         <div className="font-semibold flex items-center gap-2">
                             <span>💬 Chat với DsonStore</span>

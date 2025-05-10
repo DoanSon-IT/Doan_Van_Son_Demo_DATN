@@ -1,8 +1,20 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import "tailwindcss/tailwind.css";
 
 function AnnouncementBar({ announcements = [] }) {
+    const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const scrollPosition = window.scrollY;
+            setIsVisible(scrollPosition < 48); // Ẩn khi cuộn xuống quá 48px
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
     // Nếu không có announcements, dùng mặc định
     const defaultAnnouncements = announcements.length === 0
         ? [
@@ -14,10 +26,11 @@ function AnnouncementBar({ announcements = [] }) {
 
     return (
         <motion.div
-            className="h-12 flex items-center justify-start bg-white border-b border-gray-200 shadow-md relative overflow-hidden z-[1100]" // Thêm z-index cao
-            initial={{ opacity: 0 }}
+            className="fixed top-0 left-0 w-full h-auto md:h-12 py-2 md:py-0 flex items-center justify-start bg-white border-b border-gray-200 shadow-md relative overflow-hidden z-[1100]"
+            initial={{ opacity: 0, y: -48 }}
             animate={{
-                opacity: 1,
+                opacity: isVisible ? 1 : 0,
+                y: isVisible ? 0 : -48,
                 transition: {
                     type: "spring",
                     stiffness: 100,
@@ -25,15 +38,14 @@ function AnnouncementBar({ announcements = [] }) {
                 },
             }}
         >
-            {/* Chứa nhiều đoạn chữ chạy liên tục */}
             <motion.div
-                className="whitespace-nowrap flex items-center text-blue-600 text-lg md:text-xl font-bold tracking-wide px-4 drop-shadow-lg"
+                className="whitespace-nowrap flex items-center text-blue-600 text-sm sm:text-base md:text-lg lg:text-xl font-bold tracking-wide px-4 drop-shadow-lg"
                 animate={{ x: ["100%", "-100%"] }}
                 transition={{
                     x: {
                         repeat: Infinity,
                         repeatType: "loop",
-                        duration: defaultAnnouncements.length * 10,
+                        duration: defaultAnnouncements.length * (window.innerWidth < 768 ? 8 : 10),
                         ease: "linear",
                     },
                 }}
@@ -41,7 +53,7 @@ function AnnouncementBar({ announcements = [] }) {
                 {defaultAnnouncements.map((text, index) => (
                     <span
                         key={index}
-                        className="mx-8 animate-bounce"
+                        className="mx-4 md:mx-8 animate-bounce"
                         style={{
                             background: "linear-gradient(to right, #93c5fd, #a5b4fc)",
                             WebkitBackgroundClip: "text",
@@ -53,14 +65,6 @@ function AnnouncementBar({ announcements = [] }) {
                     </span>
                 ))}
             </motion.div>
-
-            {/* Nút đóng */}
-            <button
-                onClick={() => alert("Đoàn Sơn đẹp trai thì không đóng được nha!")}
-                className="absolute right-4 text-gray-600 hover:text-blue-600 transition-colors duration-300 z-[1101]" // Thêm z-index cao hơn
-            >
-                ✕
-            </button>
         </motion.div>
     );
 }

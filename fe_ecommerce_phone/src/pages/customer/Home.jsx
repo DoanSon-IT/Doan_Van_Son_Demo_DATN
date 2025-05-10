@@ -43,31 +43,24 @@ const Home = () => {
         fetchCategories();
     }, []);
 
-    const sidebarWidth = () => {
-        const baseWidth = windowSize.width / windowSize.pixelRatio;
-        if (baseWidth < 640) return "w-20";
-        if (baseWidth < 768) return "w-40";
-        return "w-48";
-    };
-
     return (
         <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 text-gray-800 font-mono">
-            <div className="flex w-full px-4 gap-4">
-                {/* Sidebar cố định */}
-                <aside className="hidden pt-20 lg:block w-[10%] bg-gradient-to-r bg-white shadow-xl border-r border-slate-800 flex-shrink-0 h-[calc(100vh-0px)] fixed top-[48px] left-0 z-[999] overflow-y-auto transition-all duration-500">
-                    <div className="pt-[60px] flex flex-col items-center">
-                        <div className="flex justify-center items-center p-4 lg:p-0 lg:mb-8">
+            <div className="flex w-full">
+                {/* Sidebar cố định - Ẩn trên mobile */}
+                <aside className="hidden lg:block w-[280px] bg-gradient-to-r bg-white shadow-xl border-r border-slate-800 flex-shrink-0 h-[calc(100vh-80px)] fixed top-[80px] left-0 z-[999] overflow-y-auto transition-all duration-500">
+                    <div className="pt-8 flex flex-col items-center">
+                        <div className="flex justify-center items-center p-4 mb-8">
                             <span className="text-black text-2xl font-semibold">Danh mục</span>
                         </div>
 
-                        <ul className="space-y-3 px-3 w-full">
+                        <ul className="space-y-3 px-4 w-full">
                             {categories.map((category, index) => (
                                 <li key={category.id} onMouseEnter={() => setHoverIndex(index)} onMouseLeave={() => setHoverIndex(null)}>
                                     <Link
                                         to={`/category/${category.id}`}
                                         className={`block w-full text-center px-4 py-2 text-sm font-medium rounded-xl transition-all duration-300 ${hoverIndex === index
-                                                ? "bg-black text-green-600 shadow-lg scale-[1.02]"
-                                                : "bg-black/90 text-white hover:bg-white hover:text-black hover:shadow-md hover:scale-[1.02]"
+                                            ? "bg-black text-green-600 shadow-lg scale-[1.02]"
+                                            : "bg-black/90 text-white hover:bg-white hover:text-black hover:shadow-md hover:scale-[1.02]"
                                             }`}
                                     >
                                         {category.name}
@@ -76,73 +69,27 @@ const Home = () => {
                             ))}
                         </ul>
 
-                        <div className="mt-8 px-4 w-full hidden lg:block">
+                        <div className="mt-8 px-4 w-full">
                             <div className="bg-white rounded-xl p-4 text-center text-sm shadow-md">
                                 <h3 className="font-semibold text-gray-700">Cần trợ giúp?</h3>
-                                <Link to="#" className="text-blue-500 hover:underline block mt-1">
+                                <Link to="#" className="text-blue-500 hover:underline block mt-2">
                                     Trung tâm hỗ trợ
                                 </Link>
-                                <Link to="#" className="text-blue-500 hover:underline block">
+                                <Link to="#" className="text-blue-500 hover:underline block mt-1">
                                     Câu hỏi thường gặp
                                 </Link>
                             </div>
                         </div>
 
-                        <p className="text-center text-white/80 text-xs italic mt-6 px-2">
-                            “Trải nghiệm công nghệ, nâng tầm cuộc sống.”
+                        <p className="text-center text-white/80 text-xs italic mt-6 px-4">
+                            "Trải nghiệm công nghệ, nâng tầm cuộc sống."
                         </p>
                     </div>
                 </aside>
 
                 {/* Nội dung chính */}
-                <div className="w-[75%] min-w-0 ml-[10%] mr-[15%]">
-                    <button
-                        onClick={() => setIsSidebarOpen(true)}
-                        className="lg:hidden fixed top-24 left-4 z-[102] bg-blue-500 text-white p-2 rounded-full shadow-lg transform hover:scale-110 transition-all"
-                    >
-                        ☰
-                    </button>
-                    {/* Sidebar mobile */}
-                    {isSidebarOpen && (
-                        <aside
-                            className={`bg-white border-r border-gray-200 shadow-lg flex-shrink-0 ${sidebarWidth()} h-screen fixed top-0 left-0 overflow-y-auto lg:hidden z-[901]`}
-                        >
-                            <div className="flex justify-between items-center p-4">
-                                <span className="text-2xl md:text-4xl text-blue-600">⚡</span>
-                                <button
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className="text-gray-800 text-2xl"
-                                >
-                                    ×
-                                </button>
-                            </div>
-
-                            <ul className="space-y-4 text-center p-4">
-                                {categories.length > 0 ? (
-                                    categories.map((category, index) => (
-                                        <li
-                                            key={category.id}
-                                            onMouseEnter={() => setHoverIndex(index)}
-                                            onMouseLeave={() => setHoverIndex(null)}
-                                            className="w-full"
-                                        >
-                                            <Link
-                                                to={`/category/${category.id}`}
-                                                className={`block p-2 md:p-3 text-sm md:text-base text-gray-800 hover:bg-blue-50 hover:text-blue-600 transition-all duration-300 rounded-md ${hoverIndex === index ? "border-l-4 border-blue-500 pl-2" : ""
-                                                    }`}
-                                            >
-                                                {category.name}
-                                            </Link>
-                                        </li>
-                                    ))
-                                ) : (
-                                    <p className="text-center text-xs md:text-sm text-gray-400">Loading...</p>
-                                )}
-                            </ul>
-                        </aside>
-                    )}
-
-                    <header className="w-full mb-4 relative z-20 pt-4">
+                <div className="w-full lg:ml-[280px] xl:mr-[320px]">
+                    <header className="w-full mb-4 relative z-20">
                         <Slider />
                         <p className="text-center text-sm md:text-base mt-2 text-gray-600 italic bg-gradient-to-r from-transparent via-gray-100 to-transparent py-2">
                             "Anh Đoàn Sơn có đẳng cấp không? Đẳng cấp!"
@@ -160,7 +107,7 @@ const Home = () => {
                                     }}
                                 ></div>
                             </div>
-                            <div className="flex items-center justify-center py-12">
+                            <div className="flex items-center justify-center py-8 md:py-12">
                                 <h2 className="text-xl md:text-3xl lg:text-4xl font-bold text-white z-10 animate-pulse">
                                     ⚡ Săn Deal Siêu Chất ⚡
                                 </h2>
@@ -171,7 +118,7 @@ const Home = () => {
                             <div className="text-center pb-8">
                                 <Link
                                     to="#"
-                                    className="inline-block bg-gradient-to-r from-yellow-400 to-yellow-600 text-black px-6 py-3 rounded-full font-semibold hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 shadow-lg transform hover:scale-105"
+                                    className="inline-block bg-gradient-to-r from-yellow-400 to-yellow-600 text-black px-6 py-3 rounded-full text-base font-semibold hover:from-yellow-500 hover:to-yellow-700 transition-all duration-300 shadow-lg transform hover:scale-105"
                                 >
                                     Chốt ngay
                                 </Link>
@@ -203,14 +150,14 @@ const Home = () => {
                     </section>
 
                     <section className="w-full mt-12 pb-12 z-10">
-                        <div className="max-w-6xl mx-auto px-4">
+                        <div className="max-w-6xl mx-auto">
                             <div className="mb-8 text-center">
                                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Thương hiệu nổi bật</h2>
                                 <div className="w-24 h-1 bg-blue-500 mx-auto"></div>
-                                <p className="text-gray-600 mt-3">Các thương hiệu uy tín hàng đầu thế giới</p>
+                                <p className="text-base text-gray-600 mt-3">Các thương hiệu uy tín hàng đầu thế giới</p>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                 {brands.map((brand, index) => (
                                     <div
                                         key={index}
@@ -220,35 +167,20 @@ const Home = () => {
                                         <div className="w-16 h-16 mb-3 bg-white rounded-full flex items-center justify-center shadow-md overflow-hidden">
                                             <img src={brand.logo} alt={brand.name} className="w-12 h-12 object-contain" />
                                         </div>
-                                        <span className="font-semibold text-gray-800 group-hover:text-blue-600">{brand.name}</span>
+                                        <span className="font-semibold text-base text-gray-800 group-hover:text-blue-600">{brand.name}</span>
                                         <span className="mt-2 text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600">
                                             {brand.productCount}+ sản phẩm
                                         </span>
                                     </div>
                                 ))}
                             </div>
-
-                            {/* <div className="text-center mt-8">
-                                <button className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-full shadow-sm hover:shadow transition-all inline-flex items-center">
-                                    Xem tất cả thương hiệu
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="h-4 w-4 ml-2"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div> */}
                         </div>
                     </section>
                 </div>
 
-                {/* Panel thông tin bên phải */}
-                <aside className="hidden xl:block w-[15%] bg-white border-l border-gray-200 shadow-md flex-shrink-0 h-[calc(100vh-0px)] fixed top-[48px] right-0 z-[999] overflow-y-auto pt-20">
-                    <div className="pt-[60px] flex flex-col gap-y-6">
+                {/* Panel thông tin bên phải - Ẩn trên mobile */}
+                <aside className="hidden xl:block w-[320px] bg-white border-l border-gray-200 shadow-md flex-shrink-0 h-[calc(100vh-80px)] fixed top-[80px] right-0 z-[999] overflow-y-auto pt-16">
+                    <div className="pt-8 flex flex-col gap-y-6 px-4">
                         <div className="bg-gradient-to-r from-red-500 to-red-600 p-4 rounded-xl shadow-md relative overflow-hidden">
                             <div className="absolute -top-6 -right-6 w-24 h-24 bg-red-400 rounded-full opacity-20"></div>
                             <h3 className="font-bold text-white mb-3 flex items-center text-lg">
