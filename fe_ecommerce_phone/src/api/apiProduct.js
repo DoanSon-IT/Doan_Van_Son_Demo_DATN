@@ -1,42 +1,42 @@
-import axiosInstance from "./axiosConfig";
+import axiosInstance, { publicAxiosInstance } from "./axiosConfig";
 import apiInventory from "./apiInventory";
 
 const apiProduct = {
     getAllProducts: async (searchKeyword = "", page = 0, size = 10) => {
-        const response = await axiosInstance.get("/products", {
+        const response = await publicAxiosInstance.get("/products", {
             params: { searchKeyword, page, size }
         });
         return response.data;
     },
 
     getNewestProducts: async (limit = 5) => {
-        const response = await axiosInstance.get("/products/newest", {
+        const response = await publicAxiosInstance.get("/products/newest", {
             params: { limit }
         });
         return response.data;
     },
 
     getBestSellingProducts: async (limit = 5) => {
-        const response = await axiosInstance.get("/products/bestselling", {
+        const response = await publicAxiosInstance.get("/products/bestselling", {
             params: { limit }
         });
         return response.data;
     },
 
     getProductById: async (id) => {
-        const response = await axiosInstance.get(`/products/${id}`);
+        const response = await publicAxiosInstance.get(`/products/${id}`);
         return response.data;
     },
 
     getFeaturedProducts: async (limit = 5) => {
-        const response = await axiosInstance.get("/products/featured", {
+        const response = await publicAxiosInstance.get("/products/featured", {
             params: { limit }
         });
         return response.data;
     },
 
     getRelatedProducts: async (id, limit = 5) => {
-        const response = await axiosInstance.get(`/products/${id}/related`, {
+        const response = await publicAxiosInstance.get(`/products/${id}/related`, {
             params: { limit }
         });
         return response.data;
@@ -85,7 +85,7 @@ const apiProduct = {
             }
         }
 
-        const response = await axiosInstance.get("/products/filtered", { params });
+        const response = await publicAxiosInstance.get("/products/filtered", { params });
         return response.data;
     },
 

@@ -120,10 +120,17 @@ const CHART_COLORS = {
 const STATUS_COLORS = {
     "COMPLETED": "success",
     "PENDING": "info",
-    "PROCESSING": "warning",
+    "CONFIRMED": "warning",
     "CANCELLED": "error",
-    "DELIVERED": "success",
-    "SHIPPING": "info"
+    "SHIPPED": "info"
+};
+
+const STATUS_TRANSLATIONS = {
+    "COMPLETED": "Hoàn thành",
+    "PENDING": "Chờ xử lý",
+    "CONFIRMED": "Đã xác nhận",
+    "CANCELLED": "Đã hủy",
+    "SHIPPED": "Đã gửi hàng"
 };
 
 const ReportDashboard = () => {
@@ -535,7 +542,7 @@ const ReportDashboard = () => {
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         {Object.entries(dashboardData.orderStats).map(([status, count]) => (
-                                            `${status}: ${count}`
+                                            `${STATUS_TRANSLATIONS[status] || status}: ${count}`
                                         )).join(' | ')}
                                     </Typography>
                                 </CardContent>
@@ -663,7 +670,7 @@ const ReportDashboard = () => {
                                                     {Object.entries(dashboardData.orderStats).map(([status, count]) => (
                                                         <Chip
                                                             key={status}
-                                                            label={`${status}: ${count}`}
+                                                            label={`${STATUS_TRANSLATIONS[status] || status}: ${count}`}
                                                             color={STATUS_COLORS[status] || "default"}
                                                             size="small"
                                                             variant="outlined"
@@ -968,9 +975,9 @@ const ReportDashboard = () => {
                                         dashboardData.topProducts.map((item) => (
                                             <TableRow key={item.productId}>
                                                 <TableCell>{item.productId}</TableCell>
-                                                <TableCell>{item.name}</TableCell>
+                                                <TableCell>{item.productName}</TableCell>
                                                 <TableCell>{item.category}</TableCell>
-                                                <TableCell align="right">{item.quantity ?? 0}</TableCell>
+                                                <TableCell align="right">{item.totalSold ?? 0}</TableCell>
                                                 <TableCell align="right">{formatCurrency(item.revenue ?? 0)}</TableCell>
                                                 <TableCell align="right">{formatCurrency(item.profit ?? 0)}</TableCell>
                                             </TableRow>
@@ -1006,7 +1013,6 @@ const ReportDashboard = () => {
                                         <TableCell align="right">Tồn kho</TableCell>
                                         <TableCell align="right">Mức tối thiểu</TableCell>
                                         <TableCell align="right">Cần nhập thêm</TableCell>
-                                        <TableCell align="right">Giá nhập</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -1018,20 +1024,18 @@ const ReportDashboard = () => {
                                                 <TableCell>{item.category}</TableCell>
                                                 <TableCell align="right">{item.currentStock}</TableCell>
                                                 <TableCell align="right">{item.minStock ?? 0}</TableCell>
-                                                {/* <TableCell align="right">{item.minStock ?? 0}</TableCell> // Mức tối thiểu */}
-                                                <TableCell align="right">{(item.minStock ?? 0) - (item.currentStock ?? 0)}</TableCell> // Cần nhập thêm
-
+                                                <TableCell align="right">{(item.minStock ?? 0) - (item.currentStock ?? 0)}</TableCell>
                                             </TableRow>
                                         ))
                                     ) : loading ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                                            <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                                 <CircularProgress size={24} />
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                                            <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                                                 <Typography color="text.secondary">Không có sản phẩm tồn kho thấp</Typography>
                                             </TableCell>
                                         </TableRow>

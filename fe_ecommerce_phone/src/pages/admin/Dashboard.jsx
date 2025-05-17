@@ -54,7 +54,7 @@ const StatCard = ({ icon, title, value, trend, color, onClick }) => {
 };
 
 // Component bảng dữ liệu với hiệu ứng và tính năng sắp xếp
-const DataTable = ({ title, data, columns, loading, emptyMessage }) => {
+const DataTable = ({ title, data, columns, loading, emptyMessage, pagination }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const sortedData = useMemo(() => {
@@ -86,58 +86,91 @@ const DataTable = ({ title, data, columns, loading, emptyMessage }) => {
     >
       <h2 className="text-lg font-bold mb-6 text-gray-800 border-b pb-2">{title}</h2>
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="space-y-4">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          {data && data.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200 table-hover">
-              <thead className="bg-gray-50">
-                <tr>
-                  {columns.map((column) => (
-                    <th
-                      key={column.key}
-                      onClick={() => handleSort(column.key)}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
-                    >
-                      <div className="flex items-center">
-                        {column.label}
-                        {sortConfig.key === column.key && (
-                          <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedData.map((item, index) => (
-                  <motion.tr
-                    key={item.id || index}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ backgroundColor: "#f9fafb" }}
-                    className="hover:bg-gray-50 cursor-pointer"
-                  >
+        <>
+          <div className="overflow-x-auto">
+            {data && data.length > 0 ? (
+              <table className="min-w-full divide-y divide-gray-200 table-hover">
+                <thead className="bg-gray-50">
+                  <tr>
                     {columns.map((column) => (
-                      <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {column.render
-                          ? column.render(item)
-                          : item[column.key] !== undefined ? item[column.key] : 'N/A'}
-                      </td>
+                      <th
+                        key={column.key}
+                        onClick={() => handleSort(column.key)}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition"
+                      >
+                        <div className="flex items-center">
+                          {column.label}
+                          {sortConfig.key === column.key && (
+                            <span className="ml-1">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </th>
                     ))}
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="flex justify-center items-center h-32 text-gray-500">
-              {emptyMessage || "Không có dữ liệu để hiển thị"}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedData.map((item, index) => (
+                    <motion.tr
+                      key={item.id || index}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ backgroundColor: "#f9fafb" }}
+                      className="hover:bg-gray-50 cursor-pointer"
+                    >
+                      {columns.map((column) => (
+                        <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {column.render
+                            ? column.render(item)
+                            : item[column.key] !== undefined ? item[column.key] : 'N/A'}
+                        </td>
+                      ))}
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="flex justify-center items-center h-32 text-gray-500">
+                {emptyMessage || "Không có dữ liệu để hiển thị"}
+              </div>
+            )}
+          </div>
+          {pagination && (
+            <div className="flex justify-center items-center space-x-2 mt-4">
+              <button
+                onClick={() => {
+                  setCurrentPage(currentPage - 1);
+                  fetchTabData(activeTab);
+                }}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded-md bg-white border border-gray-300 disabled:opacity-50"
+              >
+                Trước
+              </button>
+              <span className="text-gray-600">
+                Trang {currentPage} / {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => {
+                  setCurrentPage(currentPage + 1);
+                  fetchTabData(activeTab);
+                }}
+                disabled={currentPage === pagination.totalPages}
+                className="px-3 py-1 rounded-md bg-white border border-gray-300 disabled:opacity-50"
+              >
+                Sau
+              </button>
             </div>
           )}
-        </div>
+        </>
       )}
     </motion.div>
   );
@@ -164,6 +197,14 @@ const ChartCard = ({ title, children, loading }) => {
       )}
     </motion.div>
   );
+};
+
+// Cache duration constants
+const CACHE_DURATION = {
+  OVERVIEW: 5 * 60 * 1000, // 5 minutes
+  ORDERS: 2 * 60 * 1000,   // 2 minutes
+  PRODUCTS: 3 * 60 * 1000, // 3 minutes
+  CUSTOMERS: 4 * 60 * 1000 // 4 minutes
 };
 
 const Dashboard = () => {
@@ -198,12 +239,20 @@ const Dashboard = () => {
       return;
     }
 
+    // Kiểm tra quyền ADMIN
+    if (!auth.roles?.includes("ADMIN")) {
+      setError("Bạn không có quyền truy cập trang này!");
+      setLoading(false);
+      return;
+    }
+
     fetchDashboardData();
   }, [auth, authLoading, periodFilter]);
 
   // Fetch dữ liệu dashboard
   const fetchDashboardData = async () => {
     setLoading(true);
+    setError("");
     try {
       const statsData = await fetchDashboardStats(periodFilter);
       const regionData = await fetchUsersByRegion();
@@ -212,17 +261,16 @@ const Dashboard = () => {
 
       // Giả lập dữ liệu % tăng trưởng - trong thực tế sẽ lấy từ API
       setComparisons({
-        revenue: Math.floor(Math.random() * 20) - 5, // -5 đến 15%
-        orders: Math.floor(Math.random() * 15), // 0 đến 15%
-        products: Math.floor(Math.random() * 10) - 2, // -2 đến 8%
-        users: Math.floor(Math.random() * 25) - 10 // -10 đến 15%
+        revenue: Math.floor(Math.random() * 20) - 5,
+        orders: Math.floor(Math.random() * 15),
+        products: Math.floor(Math.random() * 10) - 2,
+        users: Math.floor(Math.random() * 25) - 10
       });
 
       const profitData = await fetchTotalProfit(periodFilter);
       setProfit(profitData);
 
       const ordersData = await fetchRecentOrders(8);
-      // Áp dụng ánh xạ trạng thái đơn hàng sang tiếng Việt
       const translatedOrders = ordersData.map(order => ({
         ...order,
         status: orderStatusMap[order.status] || order.status
@@ -241,7 +289,6 @@ const Dashboard = () => {
       setTopProductsDTO(topProductsDTOData);
 
       const orderStatus = await fetchOrderCountByStatus();
-      // Áp dụng ánh xạ trạng thái đơn hàng sang tiếng Việt
       const translatedOrderStatus = {};
       Object.keys(orderStatus).forEach(key => {
         translatedOrderStatus[orderStatusMap[key] || key] = orderStatus[key];
@@ -254,7 +301,11 @@ const Dashboard = () => {
       setLoading(false);
     } catch (err) {
       console.error("🚨 Lỗi fetch dữ liệu:", err);
-      setError("Không thể tải dữ liệu từ server. Vui lòng thử lại sau!");
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+      } else {
+        setError("Không thể tải dữ liệu từ server. Vui lòng thử lại sau!");
+      }
       setLoading(false);
     }
   };
@@ -468,6 +519,31 @@ const Dashboard = () => {
       )
     },
   ];
+
+  // Add pagination controls component
+  const PaginationControls = ({ totalPages, currentPage, onPageChange }) => {
+    return (
+      <div className="flex justify-center items-center space-x-2 mt-4">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-1 rounded-md bg-white border border-gray-300 disabled:opacity-50"
+        >
+          Trước
+        </button>
+        <span className="text-gray-600">
+          Trang {currentPage} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-1 rounded-md bg-white border border-gray-300 disabled:opacity-50"
+        >
+          Sau
+        </button>
+      </div>
+    );
+  };
 
   if (authLoading) {
     return (

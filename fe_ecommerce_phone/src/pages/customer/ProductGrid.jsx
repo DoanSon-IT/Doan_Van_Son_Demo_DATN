@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useInView } from "react-intersection-observer";
 import apiProduct from "../../api/apiProduct";
+import { publicAxiosInstance } from "../../api/axiosConfig";
 import ProductControls from "../../components/product/ProductControls";
 import ProductCounter from "../../components/product/ProductCounter";
 import ProductCard from "../../components/product/ProductCard";
@@ -55,8 +56,8 @@ function ProductGrid({ category, theme }) {
 
     const fetchFeaturedProducts = async () => {
         try {
-            const featured = await apiProduct.getFeaturedProducts();
-            const featuredData = Array.isArray(featured) ? featured : [];
+            const response = await publicAxiosInstance.get("/products/featured");
+            const featuredData = Array.isArray(response.data) ? response.data : [];
             setFeaturedProducts(featuredData);
         } catch (error) {
             console.error("Lỗi khi lấy sản phẩm nổi bật:", error);
@@ -66,8 +67,10 @@ function ProductGrid({ category, theme }) {
 
     const fetchNewestProducts = async () => {
         try {
-            const newest = await apiProduct.getNewestProducts(5);
-            setNewestProducts(Array.isArray(newest) ? newest : []);
+            const response = await publicAxiosInstance.get("/products/newest", {
+                params: { limit: 5 }
+            });
+            setNewestProducts(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Lỗi khi lấy sản phẩm mới:", error);
         }
@@ -75,8 +78,10 @@ function ProductGrid({ category, theme }) {
 
     const fetchBestSellingProducts = async () => {
         try {
-            const bestSelling = await apiProduct.getBestSellingProducts(5);
-            setBestSellingProducts(Array.isArray(bestSelling) ? bestSelling : []);
+            const response = await publicAxiosInstance.get("/products/bestselling", {
+                params: { limit: 5 }
+            });
+            setBestSellingProducts(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Lỗi khi lấy sản phẩm bán chạy:", error);
         }
@@ -85,17 +90,19 @@ function ProductGrid({ category, theme }) {
     const fetchProducts = async () => {
         setIsLoading(true);
         try {
-            const response = await apiProduct.getFilteredProducts(
-                "",
-                filterParams.priceRange.minValue,
-                filterParams.priceRange.maxValue,
-                sortCriteria,
-                page,
-                ITEMS_PER_PAGE
-            );
-            const productsData = response?.content || response || [];
+            const response = await publicAxiosInstance.get("/products/filtered", {
+                params: {
+                    searchKeyword: "",
+                    minPrice: filterParams.priceRange.minValue,
+                    maxPrice: filterParams.priceRange.maxValue,
+                    sortBy: sortCriteria,
+                    page,
+                    size: ITEMS_PER_PAGE
+                }
+            });
+            const productsData = response.data?.content || response.data || [];
             setProducts((prev) => (page === 0 ? productsData : [...prev, ...productsData]));
-            setTotalProducts(response?.totalElements || productsData.length);
+            setTotalProducts(response.data?.totalElements || productsData.length);
         } catch (error) {
             console.error("Lỗi khi lấy danh sách sản phẩm:", error);
             setProducts([]);

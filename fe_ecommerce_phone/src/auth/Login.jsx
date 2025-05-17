@@ -93,7 +93,7 @@ const Login = () => {
   const handleSocialLogin = (provider) => {
     const from = location.state?.from?.pathname || "/";
     sessionStorage.setItem("oauth2_redirect_path", from);
-    const oauthUrl = `http://localhost:8080/oauth2/authorization/${provider}?state=${from}`;
+    const oauthUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/oauth2/authorization/${provider}?state=${from}`;
     window.location.href = oauthUrl;
   };
 

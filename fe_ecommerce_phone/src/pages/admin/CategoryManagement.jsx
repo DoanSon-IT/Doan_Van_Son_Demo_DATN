@@ -432,7 +432,7 @@ const CategoryManagement = () => {
                         <tbody>
                             {isLoading ? (
                                 Array.from({ length: 3 }).map((_, index) => (
-                                    <tr key={index}>
+                                    <tr key={`skeleton-${index}`}>
                                         <td className="p-4"><Skeleton variant="text" width={40} /></td>
                                         <td className="p-4"><Skeleton variant="text" width="80%" /></td>
                                         <td className="p-4 text-center"><Skeleton variant="rectangular" width={120} height={36} /></td>
@@ -465,26 +465,26 @@ const CategoryManagement = () => {
                                 <AnimatePresence>
                                     {sortedCategories.map((category) => (
                                         <motion.tr
-                                            key={category.id}
+                                            key={`category-${category?.id || Math.random()}`}
                                             variants={itemVariants}
                                             initial="hidden"
                                             animate="visible"
                                             exit={{ opacity: 0, height: 0 }}
                                             className="border-t border-gray-100 hover:bg-gray-50 transition-colors"
                                         >
-                                            <td className="p-4 text-gray-700">{category.id}</td>
+                                            <td className="p-4 text-gray-700">{category?.id}</td>
                                             <td className="p-4">
-                                                {editingCategory?.id === category.id ? (
+                                                {editingCategory?.id === category?.id ? (
                                                     <Box className="flex gap-2 items-center">
                                                         <TextField
                                                             fullWidth
                                                             size="small"
                                                             variant="outlined"
-                                                            value={editingCategory.name}
+                                                            value={editingCategory?.name || ''}
                                                             onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
                                                             className="bg-white"
                                                             inputRef={editInputRef}
-                                                            onKeyPress={(e) => e.key === 'Enter' && handleUpdateCategory(category.id)}
+                                                            onKeyPress={(e) => e.key === 'Enter' && handleUpdateCategory(category?.id)}
                                                         />
                                                     </Box>
                                                 ) : (
@@ -492,21 +492,21 @@ const CategoryManagement = () => {
                                                         className="flex items-center cursor-pointer hover:text-blue-600"
                                                         onClick={() => openCategoryInfo(category)}
                                                     >
-                                                        <Typography className="font-medium">{category.name}</Typography>
+                                                        <Typography className="font-medium">{category?.name || 'N/A'}</Typography>
                                                         <Info size={14} className="ml-2 text-gray-400 hover:text-blue-500" />
                                                     </Box>
                                                 )}
                                             </td>
                                             <td className="p-4">
                                                 <Box className="flex gap-2 justify-center">
-                                                    {editingCategory?.id === category.id ? (
+                                                    {editingCategory?.id === category?.id ? (
                                                         <>
                                                             <Tooltip title="Lưu thay đổi" arrow>
                                                                 <Button
                                                                     size="small"
                                                                     variant="contained"
                                                                     className="bg-green-600 hover:bg-green-700"
-                                                                    onClick={() => handleUpdateCategory(category.id)}
+                                                                    onClick={() => handleUpdateCategory(category?.id)}
                                                                     startIcon={<Save size={16} />}
                                                                 >
                                                                     Lưu

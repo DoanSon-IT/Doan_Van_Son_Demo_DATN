@@ -34,6 +34,9 @@ const Profile = () => {
         const fetchProfile = async () => {
             try {
                 const data = await apiUser.getCurrentUser();
+                if (!data) {
+                    throw new Error("Không thể lấy thông tin người dùng");
+                }
                 setProfile(data);
                 setFormData({
                     fullName: data.fullName || "",
@@ -43,15 +46,37 @@ const Profile = () => {
                 });
                 setPreviewAvatar(data.avatarUrl || "");
             } catch (err) {
+                console.error("Lỗi khi tải thông tin:", err);
                 setError("Không thể tải thông tin cá nhân!");
-                toast.error("Không thể tải thông tin cá nhân!");
+                toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+                // Thử refresh token trước khi chuyển hướng
+                try {
+                    await refreshToken();
+                    const user = await getCurrentUser();
+                    if (user) {
+                        setAuth(user);
+                        // Thử tải lại profile
+                        const data = await apiUser.getCurrentUser();
+                        setProfile(data);
+                        setFormData({
+                            fullName: data.fullName || "",
+                            phone: data.phone || "",
+                            address: data.address || "",
+                            avatarUrl: data.avatarUrl || "",
+                        });
+                        setPreviewAvatar(data.avatarUrl || "");
+                        return;
+                    }
+                } catch (refreshError) {
+                    console.error("Không thể refresh token:", refreshError);
+                }
                 navigate("/auth/login");
             } finally {
                 setLoading(false);
             }
         };
         fetchProfile();
-    }, [navigate]);
+    }, [navigate, setAuth]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
