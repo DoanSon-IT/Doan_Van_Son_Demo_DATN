@@ -80,13 +80,6 @@ public class SecurityConfig {
                 http
                                 .csrf(csrf -> csrf.disable())
                                 .cors(cors -> cors.configure(http))
-                                .logout(logout -> logout
-                                                .logoutUrl("/api/auth/logout")
-                                                .logoutSuccessHandler((req, res, auth) -> {
-                                                        CookieUtil.clearCookie(res, "auth_token");
-                                                        CookieUtil.clearCookie(res, "refresh_token");
-                                                        res.setStatus(200);
-                                                }))
                                 .authorizeHttpRequests(auth -> auth
                                                 // 🔓 PUBLIC: không cần login
                                                 .requestMatchers(

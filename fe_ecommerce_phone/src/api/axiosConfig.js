@@ -186,4 +186,3 @@ publicAxiosInstance.interceptors.response.use(
 
 export { axiosInstance, publicAxiosInstance };
 export default axiosInstance;
-

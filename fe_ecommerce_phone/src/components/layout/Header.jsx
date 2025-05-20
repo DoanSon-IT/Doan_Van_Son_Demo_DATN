@@ -2,39 +2,39 @@ import { useState, useEffect, useContext, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, User, Search, Menu, X, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import AppContext from "../../context/AppContext";
+import { AppContext } from "../../context/AppContext";
 import apiProduct from "../../api/apiProduct";
 import apiCategory from "../../api/apiCategory";
 import debounce from "lodash/debounce";
 import AvatarWithFrame from "../common/AvatarWithFrame";
+import BubbleBackground from "./BubbleBackground";
+import BlueFlameIcon from "../common/BlueFlameIcon";
 
-const Header = () => {
+const Header = ({ isScrolled }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { auth, logout, cartItems } = useContext(AppContext);
+    const { auth, logout, cartItems, authLoading } = useContext(AppContext);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [isScrolled, setIsScrolled] = useState(false);
     const [frameIndex, setFrameIndex] = useState(() => Number(localStorage.getItem("avatarFrame")) || 0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
 
     const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-    const isAuthenticated = !!auth;
-
-    // Handle scroll effect
-    useEffect(() => {
-        const handleScroll = () => {
-            const scrollPosition = window.scrollY;
-            setIsScrolled(scrollPosition > 48); // Chuyển sang top-0 khi cuộn quá 48px
-        };
-
-        window.addEventListener("scroll", handleScroll, { passive: true });
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    const hasAuthToken = () => {
+        const match = document.cookie.match(new RegExp("(^| )auth_token=([^;]+)"));
+        console.log("Auth token check:", match); // Debug log
+        return !!match;
+    };
+    const isAuthenticated = () => {
+        const hasToken = hasAuthToken();
+        const hasUser = !!auth;
+        console.log("Auth state:", { hasToken, hasUser, auth }); // Debug log
+        return hasToken && hasUser;
+    };
 
     // Close mobile menu when route changes
     useEffect(() => {
@@ -152,392 +152,548 @@ const Header = () => {
 
     const ANNOUNCEMENT_HEIGHT = 48;
 
+    if (authLoading) {
+        return <div className="h-16 flex items-center justify-center">Đang tải...</div>;
+    }
+
     return (
         <motion.header
             initial="initial"
             animate="animate"
             exit="exit"
             variants={headerVariants}
-            className={`fixed left-0 w-full z-[1050] transition-all duration-300 ${isScrolled ? "bg-white/95 backdrop-blur-xl shadow-lg top-0" : "bg-white top-[48px]"
-                }`}
-            style={{
-                height: '64px',
-            }}
+            className={`fixed left-0 w-full z-[1100] bg-black transition-all duration-300 shadow-lg ${isScrolled ? 'top-0 backdrop-blur-xl shadow-2xl' : 'top-[48px]'}`}
+            style={{ height: '64px' }}
         >
-            <div className="max-w-[2000px] mx-auto h-full">
-                {/* Desktop Header */}
-                <div className="hidden md:flex items-center justify-between px-4 h-full">
-                    <NavLink to="/" className="relative group">
-                        <motion.img
-                            src="/Logo.png"
-                            alt="Logo"
-                            className="w-32 h-auto"
-                            whileHover={{ scale: 1.05 }}
-                            transition={{ type: "spring", stiffness: 400 }}
-                        />
+            <BubbleBackground />
+            <div className="relative z-10 max-w-[2000px] mx-auto h-full flex items-center justify-between px-6 hidden md:flex" style={{ height: '64px' }}>
+                {/* Logo */}
+                <NavLink to="/" className="flex items-center mr-4">
+                    <motion.img
+                        src="/Logo.png"
+                        alt="Logo"
+                        className="w-28 h-auto"
+                        whileHover={{ scale: 1.05 }}
+                        transition={{ type: "spring", stiffness: 400 }}
+                    />
+                </NavLink>
+                {/* Menu */}
+                <nav className="flex-1 flex items-center justify-center gap-x-8">
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
+                            `flex items-center gap-1 px-4 py-2 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-b-2
+                            ${isActive
+                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                            `
+                        }
+                    >
+                        <span>Trang&nbsp;chủ</span>
                     </NavLink>
-
-                    <nav className="flex items-center space-x-1">
-                        <NavLink
-                            to="/"
-                            className={({ isActive }) =>
-                                `px-5 py-2 text-lg font-bold rounded-lg transition-all duration-200 border-b-2 ${isActive ? "text-purple-700 border-purple-700 bg-purple-50 shadow-md" : "text-gray-700 border-transparent hover:text-purple-600 hover:border-purple-400 hover:bg-purple-50 hover:shadow"}`
-                            }
-                        >
-                            Trang chủ
-                        </NavLink>
-                        <NavLink
-                            to="/products"
-                            className={({ isActive }) =>
-                                `px-5 py-2 text-lg font-bold rounded-lg transition-all duration-200 border-b-2 ${isActive ? "text-purple-700 border-purple-700 bg-purple-50 shadow-md" : "text-gray-700 border-transparent hover:text-purple-600 hover:border-purple-400 hover:bg-purple-50 hover:shadow"}`
-                            }
-                        >
-                            Sản phẩm
-                        </NavLink>
-                        <NavLink
-                            to="/about"
-                            className={({ isActive }) =>
-                                `px-5 py-2 text-lg font-bold rounded-lg transition-all duration-200 border-b-2 ${isActive ? "text-purple-700 border-purple-700 bg-purple-50 shadow-md" : "text-gray-700 border-transparent hover:text-purple-600 hover:border-purple-400 hover:bg-purple-50 hover:shadow"}`
-                            }
-                        >
-                            Giới thiệu
-                        </NavLink>
-                        <NavLink
-                            to="/contact"
-                            className={({ isActive }) =>
-                                `px-5 py-2 text-lg font-bold rounded-lg transition-all duration-200 border-b-2 ${isActive ? "text-purple-700 border-purple-700 bg-purple-50 shadow-md" : "text-gray-700 border-transparent hover:text-purple-600 hover:border-purple-400 hover:bg-purple-50 hover:shadow"}`
-                            }
-                        >
-                            Liên hệ
-                        </NavLink>
-                    </nav>
-
-                    <div className="flex items-center space-x-4">
-                        <form onSubmit={handleSearch} className="relative">
-                            <div className="relative flex items-center">
-                                <Search className="absolute left-3 w-5 h-5 text-gray-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Tìm kiếm..."
-                                    className="w-64 pl-10 pr-4 py-2 text-sm bg-gray-100 text-gray-900 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 transition-all duration-200"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                    onFocus={() => setShowSuggestions(true)}
-                                />
-                                <AnimatePresence>
-                                    {showSuggestions && suggestions.length > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="absolute left-0 top-full mt-1 bg-white shadow-lg rounded-xl w-full py-2 border border-gray-200 z-50"
-                                        >
-                                            {suggestions.map((suggestion, index) => (
-                                                <div
-                                                    key={index}
-                                                    onClick={() => handleSuggestionClick(suggestion)}
-                                                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
-                                                >
-                                                    {suggestion.label}
-                                                    {suggestion.type === "category" && (
-                                                        <span className="text-xs text-gray-500 ml-2">(Danh mục)</span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </form>
-
-                        <NavLink to="/cart" className="relative group">
-                            <motion.div
-                                className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <ShoppingCart className="w-6 h-6 text-gray-700" />
-                                {cartItemCount > 0 && (
-                                    <motion.span
-                                        key={cartItemCount}
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                                    >
-                                        {cartItemCount}
-                                    </motion.span>
-                                )}
-                            </motion.div>
-                        </NavLink>
-
-                        <div className="relative" onMouseEnter={() => setUserMenuOpen(true)} onMouseLeave={() => setUserMenuOpen(false)}>
-                            <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200">
-                                {isAuthenticated ? (
-                                    <>
-                                        <div className="w-8 h-8">
-                                            <AvatarWithFrame
-                                                avatarUrl={auth.avatarUrl || "/default-avatar.png"}
-                                                frameUrl={`/avatar-frames/frame_${frameIndex + 1}.png`}
-                                                size={32}
-                                            />
-                                        </div>
-                                        <span className="text-sm font-semibold bg-gradient-to-r from-green-500 via-pink-500 to-blue-400 bg-clip-text text-transparent">
-                                            {auth.fullName}
-                                        </span>
-                                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                                    </>
-                                ) : (
-                                    <User className="w-6 h-6 text-gray-700" />
-                                )}
-                            </button>
-
+                    <NavLink
+                        to="/products"
+                        className={({ isActive }) =>
+                            `flex items-center gap-1 px-4 py-2 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-b-2
+                            ${isActive
+                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                            `
+                        }
+                    >
+                        <span>Sản&nbsp;phẩm</span>
+                    </NavLink>
+                    <NavLink
+                        to="/about"
+                        className={({ isActive }) =>
+                            `flex items-center gap-1 px-4 py-2 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-b-2
+                            ${isActive
+                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                            `
+                        }
+                    >
+                        <span>Giới&nbsp;thiệu</span>
+                    </NavLink>
+                    <NavLink
+                        to="/contact"
+                        className={({ isActive }) =>
+                            `flex items-center gap-1 px-4 py-2 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-b-2
+                            ${isActive
+                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                            `
+                        }
+                    >
+                        <span>Liên&nbsp;hệ</span>
+                    </NavLink>
+                </nav>
+                {/* Search + Icon */}
+                <div className="flex items-center gap-4 ml-4">
+                    <form onSubmit={handleSearch} className="relative">
+                        <div className="relative flex items-center">
+                            <Search className="absolute left-3 w-5 h-5 text-blue-400" />
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm..."
+                                className="w-56 pl-10 pr-4 py-2 text-sm bg-white/10 text-white border border-blue-400 rounded-xl shadow focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-blue-200 transition-all duration-200"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                onFocus={() => setShowSuggestions(true)}
+                            />
                             <AnimatePresence>
-                                {userMenuOpen && (
+                                {showSuggestions && suggestions.length > 0 && (
                                     <motion.div
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 top-full mt-1 bg-white shadow-lg rounded-xl w-48 py-2 border border-gray-200 z-50"
+                                        className="absolute left-0 top-full mt-1 bg-white shadow-lg rounded-xl w-full py-2 border border-gray-200 z-50"
                                     >
-                                        {isAuthenticated ? (
-                                            <>
-                                                <NavLink
-                                                    to="/profile"
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                                                >
-                                                    Thông tin cá nhân
-                                                </NavLink>
-                                                <NavLink
-                                                    to="/orders"
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                                                >
-                                                    Đơn hàng
-                                                </NavLink>
-                                                <hr className="my-2 border-gray-200" />
-                                                <button
-                                                    onClick={handleLogout}
-                                                    className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors duration-200"
-                                                >
-                                                    Đăng xuất
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <NavLink
-                                                    to="/auth/login"
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                                                >
-                                                    Đăng nhập
-                                                </NavLink>
-                                                <NavLink
-                                                    to="/auth/register"
-                                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                                                >
-                                                    Đăng ký
-                                                </NavLink>
-                                            </>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile Header */}
-                <div className="flex md:hidden items-center justify-between px-4 h-full">
-                    <div className="flex items-center">
-                        <button
-                            onClick={() => setMobileMenuOpen(true)}
-                            className="p-2 mr-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                            aria-label="Open menu"
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-
-                        <NavLink to="/" className="relative">
-                            <img
-                                src="/Logo.png"
-                                alt="Logo"
-                                className="w-24 h-auto"
-                            />
-                        </NavLink>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setMobileSearchOpen(true)}
-                            className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                            aria-label="Search"
-                        >
-                            <Search className="w-6 h-6" />
-                        </button>
-
-                        <NavLink to="/cart" className="relative">
-                            <div className="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200">
-                                <ShoppingCart className="w-6 h-6 text-gray-700" />
-                                {cartItemCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                                        {cartItemCount}
-                                    </span>
-                                )}
-                            </div>
-                        </NavLink>
-                    </div>
-                </div>
-
-                {/* Mobile Menu Sidebar */}
-                <AnimatePresence>
-                    {mobileMenuOpen && (
-                        <>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 0.5 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black z-[1100]"
-                                onClick={() => setMobileMenuOpen(false)}
-                            />
-
-                            <motion.div
-                                initial={{ x: "-100%" }}
-                                animate={{ x: 0 }}
-                                exit={{ x: "-100%" }}
-                                transition={{ type: "tween", duration: 0.3 }}
-                                className="fixed top-0 left-0 h-screen w-4/5 max-w-xs bg-white z-[1100] shadow-xl flex flex-col"
-                                style={{ marginTop: ANNOUNCEMENT_HEIGHT }}
-                            >
-                                <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                                    {isAuthenticated ? (
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-10 h-10">
-                                                <AvatarWithFrame
-                                                    avatarUrl={auth.avatarUrl || "/default-avatar.png"}
-                                                    frameUrl={`/avatar-frames/frame_${frameIndex + 1}.png`}
-                                                    size={40}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-base font-medium text-gray-900">{auth.fullName}</span>
-                                                <span className="text-sm text-gray-500">Đã đăng nhập</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-lg font-semibold">Menu</div>
-                                    )}
-                                    <button
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                                    >
-                                        <X className="w-6 h-6" />
-                                    </button>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto py-2">
-                                    <nav className="flex flex-col">
-                                        <MobileNavLink to="/" onClick={() => setMobileMenuOpen(false)}>
-                                            Trang chủ
-                                        </MobileNavLink>
-                                        <MobileNavLink to="/products" onClick={() => setMobileMenuOpen(false)}>
-                                            Sản phẩm
-                                        </MobileNavLink>
-                                        <MobileNavLink to="/about" onClick={() => setMobileMenuOpen(false)}>
-                                            Giới thiệu
-                                        </MobileNavLink>
-                                        <MobileNavLink to="/contact" onClick={() => setMobileMenuOpen(false)}>
-                                            Liên hệ
-                                        </MobileNavLink>
-                                    </nav>
-
-                                    <div className="border-t border-gray-200 mt-4 pt-4">
-                                        {isAuthenticated ? (
-                                            <>
-                                                <MobileNavLink to="/profile" onClick={() => setMobileMenuOpen(false)}>
-                                                    Thông tin cá nhân
-                                                </MobileNavLink>
-                                                <MobileNavLink to="/orders" onClick={() => setMobileMenuOpen(false)}>
-                                                    Đơn hàng
-                                                </MobileNavLink>
-                                                <button
-                                                    onClick={handleLogout}
-                                                    className="block w-full text-left py-4 px-6 text-base font-medium text-red-500 hover:bg-red-50 transition-colors duration-200"
-                                                >
-                                                    Đăng xuất
-                                                </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <MobileNavLink to="/auth/login" onClick={() => setMobileMenuOpen(false)}>
-                                                    Đăng nhập
-                                                </MobileNavLink>
-                                                <MobileNavLink to="/auth/register" onClick={() => setMobileMenuOpen(false)}>
-                                                    Đăng ký
-                                                </MobileNavLink>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
-
-                {/* Mobile Search Overlay */}
-                <AnimatePresence>
-                    {mobileSearchOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="fixed inset-0 z-[1001] bg-white p-4 flex flex-col"
-                            style={{
-                                top: isScrolled ? '64px' : '112px', // Adjust based on scroll state
-                            }}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold">Tìm kiếm</h2>
-                                <button
-                                    onClick={() => setMobileSearchOpen(false)}
-                                    className="p-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSearch} className="relative flex-1">
-                                <div className="relative flex items-center">
-                                    <Search className="absolute left-3 w-5 h-5 text-gray-500" />
-                                    <input
-                                        type="text"
-                                        placeholder="Tìm kiếm sản phẩm..."
-                                        className="w-full pl-10 pr-4 py-3 text-base bg-gray-100 text-gray-900 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        autoFocus
-                                    />
-                                </div>
-
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <div className="mt-4 bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden">
                                         {suggestions.map((suggestion, index) => (
                                             <div
                                                 key={index}
                                                 onClick={() => handleSuggestionClick(suggestion)}
-                                                className="px-4 py-3 text-base text-gray-700 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0 transition-colors duration-200"
+                                                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
                                             >
                                                 {suggestion.label}
                                                 {suggestion.type === "category" && (
-                                                    <span className="text-sm text-gray-500 ml-2">(Danh mục)</span>
+                                                    <span className="text-xs text-gray-500 ml-2">(Danh mục)</span>
                                                 )}
                                             </div>
                                         ))}
-                                    </div>
+                                    </motion.div>
                                 )}
-                            </form>
+                            </AnimatePresence>
+                        </div>
+                    </form>
+                    <NavLink to="/cart" className="relative group">
+                        <motion.div
+                            className="p-2 rounded-full hover:bg-blue-900/30 transition-colors duration-200"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            <ShoppingCart className="w-6 h-6 text-blue-400 hover:text-blue-500 transition-colors" />
+                            {cartItemCount > 0 && (
+                                <motion.span
+                                    key={cartItemCount}
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+                                >
+                                    {cartItemCount}
+                                </motion.span>
+                            )}
                         </motion.div>
-                    )}
-                </AnimatePresence>
+                    </NavLink>
+                    <div className="relative" onMouseEnter={() => setUserMenuOpen(true)} onMouseLeave={() => setUserMenuOpen(false)}>
+                        <button className="flex items-center space-x-2 p-2 rounded-full hover:bg-blue-900/30 transition-colors duration-200">
+                            {isAuthenticated() ? (
+                                <>
+                                    <div className="w-8 h-8">
+                                        <AvatarWithFrame
+                                            avatarUrl={auth.avatarUrl || "/default-avatar.png"}
+                                            frameUrl={`/avatar-frames/frame_${frameIndex + 1}.png`}
+                                            size={32}
+                                        />
+                                    </div>
+                                    <span className="text-sm font-semibold bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 bg-clip-text text-transparent">
+                                        {auth.fullName}
+                                    </span>
+                                    <ChevronDown className="w-4 h-4 text-blue-400" />
+                                </>
+                            ) : (
+                                <User className="w-6 h-6 text-blue-400 hover:text-blue-500 transition-colors" />
+                            )}
+                        </button>
+                        {/* Dropdown user menu desktop */}
+                        <AnimatePresence>
+                            {userMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="absolute right-0 top-full mt-1 bg-black shadow-lg rounded-xl w-48 py-2 border border-gray-200 z-50 hidden md:block"
+                                >
+                                    {isAuthenticated() ? (
+                                        <>
+                                            <NavLink
+                                                to="/profile"
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                                    ${isActive
+                                                        ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                        : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                                    `
+                                                }
+                                            >
+                                                Thông tin cá nhân
+                                            </NavLink>
+                                            <NavLink
+                                                to="/orders"
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                                    ${isActive
+                                                        ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                        : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                                    `
+                                                }
+                                            >
+                                                Đơn hàng
+                                            </NavLink>
+                                            <hr className="my-2 border-gray-200" />
+                                            <button
+                                                onClick={handleLogout}
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                                    ${isActive
+                                                        ? "text-red-500 bg-gradient-to-r from-red-400 via-red-500 to-red-700 shadow-lg shadow-red-400/30 animate-glow border-red-500"
+                                                        : "text-white bg-transparent hover:bg-gradient-to-r hover:from-red-300 hover:via-red-500 hover:to-red-700 hover:text-white hover:shadow-lg hover:shadow-red-400/30 border-transparent"}
+                                                    `
+                                                }
+                                            >
+                                                Đăng xuất
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <NavLink
+                                                to="/auth/login"
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                                    ${isActive
+                                                        ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                        : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                                    `
+                                                }
+                                            >
+                                                Đăng nhập
+                                            </NavLink>
+                                            <NavLink
+                                                to="/auth/register"
+                                                className={({ isActive }) =>
+                                                    `flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                                    ${isActive
+                                                        ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                        : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                                    `
+                                                }
+                                            >
+                                                Đăng ký
+                                            </NavLink>
+                                        </>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
             </div>
+            {/* Mobile Header */}
+            <div className="flex md:hidden items-center justify-between px-4 h-[72px] relative z-20 bg-black/90" style={{ paddingTop: 0 }}>
+                <div className="flex items-center h-full">
+                    <button
+                        onClick={() => { setMobileMenuOpen(true); setUserMenuOpen(false); }}
+                        className="p-2 mr-2 text-white hover:bg-blue-900/30 rounded-full transition-colors duration-200 flex items-center h-full"
+                        aria-label="Open menu"
+                        style={{ zIndex: 1201 }}
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                    <NavLink to="/" className="relative flex items-center h-full">
+                        <img
+                            src="/Logo.png"
+                            alt="Logo"
+                            className="w-24 h-auto"
+                        />
+                    </NavLink>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => { setMobileSearchOpen(true); setUserMenuOpen(false); }}
+                        className="p-2 text-white hover:bg-blue-900/30 rounded-full transition-colors duration-200"
+                        aria-label="Search"
+                    >
+                        <Search className="w-6 h-6" />
+                    </button>
+                    <NavLink to="/cart" className="relative">
+                        <div className="p-2 text-white hover:bg-blue-900/30 rounded-full transition-colors duration-200">
+                            <ShoppingCart className="w-6 h-6" />
+                            {cartItemCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                                    {cartItemCount}
+                                </span>
+                            )}
+                        </div>
+                    </NavLink>
+                    <button
+                        onClick={() => { setUserMenuOpen(!userMenuOpen); setMobileMenuOpen(false); }}
+                        className="p-2 text-white hover:bg-blue-900/30 rounded-full transition-colors duration-200"
+                        aria-label="User menu"
+                    >
+                        <User className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+            {/* Mobile User Menu */}
+            <AnimatePresence>
+                {userMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, x: "100%" }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: "100%" }}
+                        className="fixed inset-y-0 right-0 w-64 bg-black shadow-lg z-[1200] md:hidden"
+                    >
+                        <div className="p-4 border-b border-gray-200">
+                            <button
+                                onClick={() => setUserMenuOpen(false)}
+                                className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            {isAuthenticated() ? (
+                                <>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-12 h-12">
+                                            <AvatarWithFrame
+                                                avatarUrl={auth.avatarUrl || "/default-avatar.png"}
+                                                frameUrl={`/avatar-frames/frame_${frameIndex + 1}.png`}
+                                                size={48}
+                                            />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900">{auth.fullName}</h3>
+                                            <p className="text-sm text-gray-500">{auth.email}</p>
+                                        </div>
+                                    </div>
+                                    <NavLink
+                                        to="/profile"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4 mb-2
+                                            ${isActive
+                                                ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                            `
+                                        }
+                                    >
+                                        Thông tin cá nhân
+                                    </NavLink>
+                                    <NavLink
+                                        to="/orders"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4 mb-2
+                                            ${isActive
+                                                ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                : "text-whitewhite bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                            `
+                                        }
+                                    >
+                                        Đơn hàng
+                                    </NavLink>
+                                    <button
+                                        onClick={() => {
+                                            handleLogout();
+                                            setUserMenuOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4 text-white bg-transparent hover:bg-gradient-to-r hover:from-red-300 hover:via-red-500 hover:to-red-700 hover:text-white hover:shadow-lg hover:shadow-red-400/30 border-transparent"
+                                    >
+                                        Đăng xuất
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <NavLink
+                                        to="/auth/login"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4 mb-2
+                                            ${isActive
+                                                ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                            `
+                                        }
+                                    >
+                                        Đăng nhập
+                                    </NavLink>
+                                    <NavLink
+                                        to="/auth/register"
+                                        onClick={() => setUserMenuOpen(false)}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                            ${isActive
+                                                ? "text-blue-700 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/30 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/30 border-transparent"}
+                                            `
+                                        }
+                                    >
+                                        Đăng ký
+                                    </NavLink>
+                                </>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            {/* Mobile Menu Sidebar */}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.5 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black z-[1100]"
+                            onClick={() => setMobileMenuOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ x: "-100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "-100%" }}
+                            transition={{ type: "tween", duration: 0.3 }}
+                            className="fixed top-0 left-0 h-screen w-4/5 max-w-xs bg-black z-[1200] shadow-xl flex flex-col"
+                        >
+                            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                                <span className="text-lg font-semibold text-white">Menu</span>
+                                <button
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="p-2 text-white hover:bg-blue-900/30 rounded-full transition-colors duration-200"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto py-2">
+                                <nav className="flex flex-col gap-y-2 mt-2">
+                                    <NavLink
+                                        to="/"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-1 px-4 py-3 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                            ${isActive
+                                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                                            `
+                                        }
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        <span>Trang&nbsp;chủ</span>
+                                    </NavLink>
+                                    <NavLink
+                                        to="/products"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-1 px-4 py-3 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                            ${isActive
+                                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                                            `
+                                        }
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        <span>Sản&nbsp;phẩm</span>
+                                    </NavLink>
+                                    <NavLink
+                                        to="/about"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-1 px-4 py-3 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                            ${isActive
+                                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                                            `
+                                        }
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        <span>Giới&nbsp;thiệu</span>
+                                    </NavLink>
+                                    <NavLink
+                                        to="/contact"
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-1 px-4 py-3 text-lg font-bold rounded-lg tracking-wider transition-all duration-200 border-l-4
+                                            ${isActive
+                                                ? "text-white bg-gradient-to-r from-blue-400 via-blue-500 to-blue-700 shadow-lg shadow-blue-400/50 animate-glow border-blue-500"
+                                                : "text-white bg-transparent hover:bg-gradient-to-r hover:from-blue-300 hover:via-blue-500 hover:to-blue-700 hover:text-white hover:shadow-lg hover:shadow-blue-400/50 border-transparent"}
+                                            `
+                                        }
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        <span>Liên&nbsp;hệ</span>
+                                    </NavLink>
+                                </nav>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+            {/* Mobile Search Popup */}
+            <AnimatePresence>
+                {mobileSearchOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.5 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black z-[1100]"
+                            onClick={() => setMobileSearchOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ y: "-100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "-100%" }}
+                            transition={{ type: "tween", duration: 0.3 }}
+                            className="fixed top-0 left-0 w-full bg-black z-[1200] shadow-xl p-4 flex flex-col"
+                        >
+                            <div className="flex items-center mb-4">
+                                <button
+                                    onClick={() => setMobileSearchOpen(false)}
+                                    className="p-2 text-blue-400 hover:bg-blue-900/30 rounded-full transition-colors duration-200"
+                                >
+                                    <X className="w-6 h-6 text-white" />
+                                </button>
+                                <span className="ml-2 text-lg font-semibold text-white">Tìm kiếm</span>
+                            </div>
+                            <form onSubmit={handleSearch} className="w-full">
+                                <div className="relative flex items-center w-full">
+                                    <Search className="absolute left-3 w-5 h-5 text-blue-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Tìm kiếm..."
+                                        className="w-full pl-10 pr-4 py-3 text-base bg-black text-white border border-blue-400 rounded-xl shadow focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-blue-200 transition-all duration-200"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        autoFocus
+                                    />
+                                </div>
+                            </form>
+                            <AnimatePresence>
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="mt-2 bg-black shadow-lg rounded-xl w-full py-2 border border-gray-700 z-50"
+                                    >
+                                        {suggestions.map((suggestion, index) => (
+                                            <div
+                                                key={index}
+                                                onClick={() => handleSuggestionClick(suggestion)}
+                                                className="px-4 py-2 text-base text-white hover:bg-gray-800 cursor-pointer transition-colors duration-200"
+                                            >
+                                                {suggestion.label}
+                                                {suggestion.type === "category" && (
+                                                    <span className="text-xs text-gray-400 ml-2">(Danh mục)</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </motion.header>
     );
 };

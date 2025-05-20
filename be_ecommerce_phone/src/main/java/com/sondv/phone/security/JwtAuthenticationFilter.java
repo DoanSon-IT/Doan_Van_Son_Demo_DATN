@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 
 @Component
@@ -53,6 +54,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         logger.info("🔍 Xử lý request: {}", request.getRequestURI());
+        logger.info("🌐 Request origin: {}", request.getHeader("Origin"));
+        logger.info("🔑 Request headers:");
+        Collections.list(request.getHeaderNames()).forEach(headerName -> {
+            logger.info("{}: {}", headerName, request.getHeader(headerName));
+        });
 
         Optional<String> tokenOpt = CookieUtil.getCookieValue(request, "auth_token");
         if (tokenOpt.isEmpty()) {

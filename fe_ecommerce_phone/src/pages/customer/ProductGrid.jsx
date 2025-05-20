@@ -7,7 +7,7 @@ import ProductCounter from "../../components/product/ProductCounter";
 import ProductCard from "../../components/product/ProductCard";
 import { ToastContainer, toast } from "react-toastify";
 import { ShoppingCart, Check, Flame, Clock, TrendingUp } from "lucide-react";
-import AppContext from "../../context/AppContext";
+import { AppContext } from "../../context/AppContext";
 import "react-toastify/dist/ReactToastify.css";
 import "../../assets/toast-custom.css";
 

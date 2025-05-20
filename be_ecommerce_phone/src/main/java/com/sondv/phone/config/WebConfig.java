@@ -15,6 +15,10 @@ public class WebConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                System.out.println("🌐 CORS Configuration:");
+                System.out.println("Frontend URL: " + frontendUrl);
+                System.out.println("Dev URL: " + devUrl);
+
                 registry.addMapping("/**")
                         .allowedOrigins(frontendUrl, devUrl, "http://localhost:3000")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
@@ -22,6 +26,13 @@ public class WebConfig {
                         .exposedHeaders("Set-Cookie", "Authorization")
                         .allowCredentials(true)
                         .maxAge(3600);
+
+                System.out.println("✅ CORS configured with:");
+                System.out.println(
+                        "- Allowed Origins: " + String.join(", ", frontendUrl, devUrl, "http://localhost:3000"));
+                System.out.println("- Allowed Methods: GET, POST, PUT, DELETE, OPTIONS");
+                System.out.println("- Exposed Headers: Set-Cookie, Authorization");
+                System.out.println("- Allow Credentials: true");
             }
         };
     }

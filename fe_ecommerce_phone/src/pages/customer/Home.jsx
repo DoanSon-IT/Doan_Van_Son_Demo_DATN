@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import ProductGrid from "./ProductGrid";
 import Slider from "../../components/layout/Slider";
 import apiCategory from "../../api/apiCategory";
@@ -9,6 +9,7 @@ const Home = () => {
     const [categories, setCategories] = useState([]);
     const [hoverIndex, setHoverIndex] = useState(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const { isScrolled } = useOutletContext();
     const brands = [
         { name: "Apple", logo: "/brands/apple.png", productCount: 120 },
         { name: "Samsung", logo: "/brands/samsung.png", productCount: 110 },
@@ -89,8 +90,10 @@ const Home = () => {
 
                 {/* Nội dung chính */}
                 <div className="w-full lg:ml-[280px] xl:mr-[320px]">
-                    <header className="w-full mb-4 relative z-20">
-                        <Slider />
+                    <header className="w-full relative z-20">
+                        <div className="mt-0 md:-mt-[50px]">
+                            <Slider isScrolled={isScrolled} />
+                        </div>
                         <p className="text-center text-sm md:text-base mt-2 text-gray-600 italic bg-gradient-to-r from-transparent via-gray-100 to-transparent py-2">
                             "Anh Đoàn Sơn có đẳng cấp không? Đẳng cấp!"
                         </p>

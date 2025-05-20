@@ -3,7 +3,7 @@ import slider1 from "../../assets/slider_1.png";
 import slider2 from "../../assets/slider_2.png";
 import slider3 from "../../assets/slider_3.png";
 
-const Slider = () => {
+const Slider = ({ isScrolled }) => {
     const slides = [
         { id: 1, title: "iPhone 15 Pro Max", description: "Công nghệ dẫn đầu - Giảm đến 3 triệu", image: slider1, buttonText: "Mua ngay", buttonLink: "/product/iphone-15" },
         { id: 2, title: "Samsung Galaxy Z Fold 5", description: "Màn hình gập đột phá - Quà tặng 5 triệu", image: slider2, buttonText: "Khám phá", buttonLink: "/product/z-fold-5" },
@@ -61,7 +61,7 @@ const Slider = () => {
 
     return (
         <div
-            className="relative w-full h-[25vh] sm:h-[35vh] md:h-[40vh] lg:h-[50vh] xl:h-[60vh] max-h-[600px] overflow-hidden bg-black"
+            className="relative w-full h-[25vh] sm:h-[35vh] md:h-[40vh] lg:h-[50vh] xl:h-[60vh] max-h-[600px] overflow-hidden bg-black transition-all duration-300 mt-0"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >

@@ -227,3 +227,73 @@ button:hover svg {
     transform: scale(1.1) rotate(1deg);
     transition: all 0.3s ease;
 }
+
+@keyframes flame-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px 2px #38bdf8, 0 0 20px 4px #2563eb;
+    }
+
+    50% {
+        box-shadow: 0 0 20px 6px #38bdf8, 0 0 40px 12px #2563eb;
+    }
+}
+
+.animate-glow {
+    animation: flame-glow 1.2s infinite alternate;
+}
+
+@keyframes flame-flicker {
+
+    0%,
+    100% {
+        transform: translateY(0) scale(1);
+        color: #38bdf8;
+        /* xanh dương nhạt */
+    }
+
+    20% {
+        transform: translateY(-2px) scale(1.1);
+        color: #0ea5e9;
+        /* xanh dương sáng */
+    }
+
+    40% {
+        transform: translateY(1px) scale(0.95);
+        color: #2563eb;
+        /* xanh dương đậm */
+    }
+
+    60% {
+        transform: translateY(-1px) scale(1.05);
+        color: #60a5fa;
+        /* xanh dương trung bình */
+    }
+
+    80% {
+        transform: translateY(2px) scale(1);
+        color: #38bdf8;
+    }
+}
+
+.animate-flame {
+    animation: flame-flicker 0.8s infinite alternate;
+    display: inline-block;
+}
+
+@keyframes bubbleUp {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 0.2;
+    }
+
+    70% {
+        opacity: 0.3;
+    }
+
+    100% {
+        transform: translateY(-120px) scale(1.2);
+        opacity: 0;
+    }
+}

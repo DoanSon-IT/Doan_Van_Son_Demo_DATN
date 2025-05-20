@@ -52,6 +52,13 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse("Đăng nhập thành công"));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(HttpServletResponse response) {
+        CookieUtil.clearCookie(response, "auth_token");
+        CookieUtil.clearCookie(response, "refresh_token");
+        return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công"));
+    }
+
     @GetMapping("/verify")
     public ResponseEntity<Map<String, String>> verify(@RequestParam("token") String token) {
         Map<String, String> response = authService.verifyEmail(token);
